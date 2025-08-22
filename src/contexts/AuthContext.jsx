@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
 const AuthContext = createContext(undefined);
-
+const apiUrl = import.meta.env.VITE_API_URL
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
@@ -26,7 +26,7 @@ export const AuthProvider = ({ children }) => {
 
 const login = async (name, password) => {
   try {
-    const response = await fetch('http://localhost:8000/api/mentors/login', {
+    const response = await fetch(`${apiUrl}/mentors/login`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
