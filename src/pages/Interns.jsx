@@ -303,12 +303,8 @@ const Interns = () => {
                         ))}
                       </div>
                     </td>
-                    <td>
-                      {(intern.lessonsVisited || []).map((lesson) => (
-                        <span key={`${lesson.mentorId}-${lesson.lessonId}`} className="badge badge-info mr-1">
-                          {getMentorName(lesson.mentorId)} - {lesson.lessonId}: {lesson.count}
-                        </span>
-                      ))}
+                    <td className='text-center'>
+                      {(intern.lessonsVisited.length || [])}
                     </td>
                     <td>{intern.grade || 'N/A'}</td>
                     <td>{new Date(intern.createdAt).toLocaleDateString('ru-RU')}</td>
@@ -336,9 +332,7 @@ const Interns = () => {
                   <p>Филиал: {getBranchName(intern.branch)}</p>
                   <p>Ментор: {getMentorName(intern.mentor)}</p>
                   <p>Рейтинг: {intern.score || 0}/5</p>
-                  <p>Уроки: {(intern.lessonsVisited || [])
-                    .map((lesson) => `${getMentorName(lesson.mentorId)} - ${lesson.lessonId}: ${lesson.count}`)
-                    .join(', ') || 'N/A'}</p>
+                  <p>Уроки: {(intern.lessonsVisited.length || [])}</p>
                   <p>Уровень: {intern.grade || 'N/A'}</p>
                   <p>Создан: {new Date(intern.createdAt).toLocaleDateString('ru-RU')}</p>
                   <div className="flex gap-2 mt-2">
