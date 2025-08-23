@@ -11,7 +11,7 @@ const Branches = () => {
     address: '',
     city: '',
   });
-
+  //asdsadadas
   useEffect(() => {
     fetchBranches();
   }, []);
