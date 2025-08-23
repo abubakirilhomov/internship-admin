@@ -82,8 +82,8 @@ const Branches = () => {
             <div className="card-body">
               <div className="flex justify-between items-start">
                 <div className="flex items-center gap-3">
-                  <div className="avatar placeholder">
-                    <div className="bg-accent text-accent-content rounded-full w-12">
+                  <div className="avatar text-center placeholder">
+                    <div className="bg-accent text-center flex items-center justify-center w-full text-accent-content rounded-full p-5">
                       <Building2 className="h-6 w-6" />
                     </div>
                   </div>

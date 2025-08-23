@@ -1,4 +1,4 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL;
+const API_BASE_URL = import.meta.env.VITE_API_URL1;
 console.log(API_BASE_URL)
 const user = JSON.parse(localStorage.getItem("user"));
 const getAuthHeaders = () => {
@@ -33,6 +33,13 @@ export const api = {
       console.log(data);
       return response.json();
     },
+    getRating: async () => {
+    const response = await fetch(`${API_BASE_URL}/interns/rating`, {
+      headers: getAuthHeaders(),
+    });
+    console.log(response)
+    return response.json();
+  },
     update: async (id, data) => {
       const response = await fetch(`${API_BASE_URL}/interns/${id}`, {
         method: "PUT",

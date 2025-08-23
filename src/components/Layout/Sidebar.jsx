@@ -13,6 +13,7 @@ const Sidebar = () => {
     { name: 'Менторы', href: '/mentors', icon: UserCheck },
     { name: 'Филиалы', href: '/branches', icon: Building2 },
     { name: 'Статистика', href: '/statistics', icon: BarChart3 },
+    { name: 'Рейтинг Интернов', href: '/interns/rating', icon: BarChart3 },
   ];
 
   return (
@@ -21,7 +22,7 @@ const Sidebar = () => {
       <aside className="w-64 min-h-full bg-base-200 text-base-content">
         <div className="p-4">
           <div className="flex items-center gap-2 mb-8">
-            <div className="avatar placeholder">
+            <div className="avatar text-center placeholder">
               <div className="bg-primary text-primary-content rounded-full w-8">
                 <span className="text-xs">{user?.name?.charAt(0)}</span>
               </div>

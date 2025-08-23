@@ -9,6 +9,7 @@ import Dashboard from './pages/Dashboard';
 import Interns from './pages/Interns';
 import Mentors from './pages/Mentors';
 import Branches from './pages/Branches';
+import InternsRating from './pages/InternsRating';
 
 const Layout = ({ children }) => {
   return (
@@ -38,6 +39,16 @@ function App() {
                 <ProtectedRoute>
                   <Layout>
                     <Dashboard />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/interns/rating"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <InternsRating />
                   </Layout>
                 </ProtectedRoute>
               }

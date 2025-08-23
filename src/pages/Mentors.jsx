@@ -177,7 +177,7 @@ const Mentors = () => {
                   <tr key={mentor._id}>
                     <td>
                       <div className="flex items-center gap-3">
-                        <div className="avatar placeholder">
+                        <div className="avatar text-center placeholder">
                           <div className="bg-secondary text-secondary-content rounded-full w-8">
                             <span className="text-xs">{mentor.name.charAt(0)}</span>
                           </div>

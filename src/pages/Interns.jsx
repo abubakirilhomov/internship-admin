@@ -273,9 +273,9 @@ const Interns = () => {
                   <tr key={intern._id}>
                     <td>
                       <div className="flex items-center gap-3">
-                        <div className="avatar placeholder">
-                          <div className="bg-neutral text-neutral-content rounded-full w-8">
-                            <span className="text-xs">{intern.name?.charAt(0) || 'N/A'}</span>
+                        <div className="avatar text-center placeholder">
+                          <div className="bg-warning rounded-full w-8">
+                            <span className="text-xs font-semibold">{intern.name?.charAt(0) || 'N/A'}</span>
                           </div>
                         </div>
                         <div className="font-bold">{intern.name || 'N/A'}</div>
