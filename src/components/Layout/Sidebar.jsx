@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Users, Building2, UserCheck, BarChart3, Home, LogOut } from 'lucide-react';
+import { Users, Building2, UserCheck, BarChart3, Home, LogOut, Scale } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
 const Sidebar = () => {
@@ -14,6 +14,7 @@ const Sidebar = () => {
     { name: 'Филиалы', href: '/branches', icon: Building2 },
     { name: 'Статистика', href: '/statistics', icon: BarChart3 },
     { name: 'Рейтинг Интернов', href: '/interns/rating', icon: BarChart3 },
+    { name: 'Правила', href: '/rules', icon: Scale },
   ];
 
   return (

@@ -1,5 +1,5 @@
 const API_BASE_URL = import.meta.env.VITE_API_URL;
-console.log(API_BASE_URL)
+console.log(API_BASE_URL);
 const user = JSON.parse(localStorage.getItem("user"));
 const getAuthHeaders = () => {
   const token = localStorage.getItem("token");
@@ -21,7 +21,9 @@ export const api = {
         }),
       };
 
-      const response = await fetch(`${API_BASE_URL}/interns`, { headers: getAuthHeaders() });
+      const response = await fetch(`${API_BASE_URL}/interns`, {
+        headers: getAuthHeaders(),
+      });
       return response.json();
     },
     create: async (data) => {
@@ -34,12 +36,11 @@ export const api = {
       return response.json();
     },
     getRating: async () => {
-    const response = await fetch(`${API_BASE_URL}/interns/rating`, {
-      headers: getAuthHeaders(),
-    });
-    console.log(response)
-    return response.json();
-  },
+      const response = await fetch(`${API_BASE_URL}/interns/rating`, {
+        headers: getAuthHeaders(),
+      });
+      return response.json();
+    },
     update: async (id, data) => {
       const response = await fetch(`${API_BASE_URL}/interns/${id}`, {
         method: "PUT",
@@ -124,6 +125,30 @@ export const api = {
         headers: getAuthHeaders(),
       });
       return response.json();
+    },
+  },
+  rules: {
+    getAll: async () => {
+      const response = await fetch(`${API_BASE_URL}/rules`, {
+        headers: getAuthHeaders(),
+      });
+      return response.json();
+    },
+    create: async (data) => {
+      const response = await fetch(`${API_BASE_URL}/rules`, {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify(data),
+      });
+      return response.json();
+    },
+    delete: async (id) => {
+      if (!id) throw new Error("Rule ID is required");
+      const response = await fetch(`${API_BASE_URL}/rules/${id}`, {
+        method: "DELETE",
+        headers: getAuthHeaders(),
+      });
+      return response.json()
     },
   },
 };
