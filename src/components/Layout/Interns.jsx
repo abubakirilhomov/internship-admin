@@ -5,25 +5,50 @@ import InternsTable from "./InternsTable";
 import InternsCardList from "./InternsCardList";
 import InternFormModal from "./InternFormModal";
 import ViolationsModal from "./ViolationsModal";
+import { Bar } from "react-chartjs-2";
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend,
+} from "chart.js";
+
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend
+);
 
 const Interns = () => {
   const [interns, setInterns] = useState([]);
   const [branches, setBranches] = useState([]);
   const [mentors, setMentors] = useState([]);
   const [rules, setRules] = useState([]);
+  const [stats, setStats] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
   const [showFormModal, setShowFormModal] = useState(false);
   const [showViolationsModal, setShowViolationsModal] = useState(false);
   const [selectedIntern, setSelectedIntern] = useState(null);
+  const [period, setPeriod] = useState("month"); // Для фильтра статистики
 
   useEffect(() => {
     fetchInterns();
     fetchBranches();
     fetchMentors();
     fetchRules();
+    fetchStats();
   }, []);
+
+  useEffect(() => {
+    fetchStats();
+  }, [period]); // Обновлять статистику при смене периода
 
   const fetchInterns = async () => {
     try {
@@ -64,14 +89,24 @@ const Interns = () => {
     }
   };
 
+  const fetchStats = async () => {
+    try {
+      const data = await api.lessons.getAttendanceStats({ period });
+      setStats(data);
+    } catch (error) {
+      setError(error.message || "Ошибка при загрузке статистики");
+    }
+  };
+
   const handleDelete = async (id) => {
     try {
       setLoading(true);
       await api.interns.delete(id);
       await fetchInterns();
+      await fetchStats();
     } catch (error) {
       setError(error.message || "Ошибка при удалении стажёра");
-      console.error("Error deleting intern:", error);
+      console.error("Error deleting intern:", error); // Исправлено err -> error
     } finally {
       setLoading(false);
     }
@@ -129,28 +164,101 @@ const Interns = () => {
         refresh={fetchInterns}
       />
 
-      {/* <InternsCardList
-        interns={interns}
-        branches={branches}
-        mentors={mentors}
-        rules={rules}
-        onEdit={(intern) => {
-          setSelectedIntern(intern);
-          setShowFormModal(true);
-        }}
-        onDelete={handleDelete}
-        onViolations={(intern) => {
-          setSelectedIntern(intern);
-          setShowViolationsModal(true);
-        }}
-        refresh={fetchInterns}
-      /> */}
+      <div className="mt-8">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-2xl font-bold">Статистика посещаемости</h2>
+          <select
+            value={period}
+            onChange={(e) => setPeriod(e.target.value)}
+            className="select select-bordered"
+          >
+            <option value="month">Месяц</option>
+            <option value="week">Неделя</option>
+          </select>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="table table-zebra w-full">
+            <thead>
+              <tr>
+                <th>Интерн</th>
+                <th>Посещено уроков</th>
+                <th>% нормы</th>
+                <th>Выполняет норму</th>
+              </tr>
+            </thead>
+            <tbody>
+              {stats.map((stat) => (
+                <tr
+                  key={stat.internId}
+                  className={stat.meetsNorm ? "" : "bg-red-100"}
+                >
+                  <td>{stat.name}</td>
+                  <td>{stat.attended}</td>
+                  <td>{stat.percentage}%</td>
+                  <td>{stat.meetsNorm ? "✅" : "❌"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {stats.length > 0 && (
+        <div className="mt-8">
+          <h3 className="text-xl font-bold mb-4">График посещаемости</h3>
+          <Bar
+            data={{
+              labels: stats.map((s) => s.name),
+              datasets: [
+                {
+                  label: "Посещено уроков",
+                  data: stats.map((s) => s.attended),
+                  backgroundColor: "rgba(75, 192, 192, 0.6)",
+                  borderColor: "rgba(75, 192, 192, 1)",
+                  borderWidth: 1,
+                },
+                {
+                  label: "Норма",
+                  data: stats.map(() => calculateNorm(period)),
+                  backgroundColor: "rgba(255, 99, 132, 0.3)",
+                  borderColor: "rgba(255, 99, 132, 1)",
+                  borderWidth: 1,
+                },
+              ],
+            }}
+            options={{
+              responsive: true,
+              scales: {
+                y: {
+                  beginAtZero: true,
+                  title: { display: true, text: "Количество уроков" },
+                },
+                x: {
+                  title: { display: true, text: "Интерны" },
+                },
+              },
+              plugins: {
+                legend: { display: true },
+                title: {
+                  display: true,
+                  text: `Посещаемость за ${
+                    period === "month" ? "месяц" : "неделю"
+                  }`,
+                },
+              },
+            }}
+          />
+        </div>
+      )}
 
       {showFormModal && (
         <InternFormModal
           initialData={selectedIntern}
           onClose={() => setShowFormModal(false)}
-          refresh={fetchInterns}
+          refresh={() => {
+            fetchInterns();
+            fetchStats();
+          }}
           branches={branches}
           mentors={mentors}
           rules={rules}
@@ -165,6 +273,23 @@ const Interns = () => {
       )}
     </div>
   );
+};
+
+const calculateMonthlyNorm = (date) => {
+  const year = date.getFullYear();
+  const month = date.getMonth();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  let sundays = 0;
+  for (let day = 1; day <= daysInMonth; day++) {
+    const d = new Date(year, month, day);
+    if (d.getDay() === 0) sundays++;
+  }
+  return (daysInMonth - sundays) * 2;
+};
+
+const calculateNorm = (period) => {
+  if (period === "week") return 12; // 2 урока * 6 дней (пн-сб)
+  return calculateMonthlyNorm(new Date());
 };
 
 export default Interns;

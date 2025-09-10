@@ -8,7 +8,7 @@ const InternsTable = ({ interns, onEdit, onDelete, rules }) => {
 
   const handleDeleteConfirm = (id) => {
     onDelete(id);
-    setShowDeleteModal(null); // Close modal after confirmation
+    setShowDeleteModal(null);
   };
 
   return (
