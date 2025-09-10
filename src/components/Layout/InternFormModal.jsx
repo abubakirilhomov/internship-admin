@@ -1,5 +1,13 @@
 import React, { useState, useEffect } from "react";
-import { User, Lock, Building, UserCheck, Star, Award } from "lucide-react";
+import {
+  User,
+  Lock,
+  Building,
+  UserCheck,
+  Star,
+  Award,
+  Calendar,
+} from "lucide-react";
 import { api } from "../../utils/api";
 
 const InternFormModal = ({ onClose, branches, initialData, refresh }) => {
@@ -13,7 +21,9 @@ const InternFormModal = ({ onClose, branches, initialData, refresh }) => {
     attendedLessons: 0,
     rating: 0,
     grade: "junior",
+    dateJoined: new Date().toISOString().split("T")[0], // по умолчанию сегодня
   });
+
   const [mentors, setMentors] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -28,12 +38,15 @@ const InternFormModal = ({ onClose, branches, initialData, refresh }) => {
         name: initialData.name || "",
         lastName: initialData.lastName || "",
         username: initialData.username || "",
-        password: "", // Do not prefill password for security
+        password: "",
         branch: initialData.branch?._id || "",
         mentor: initialData.mentor?._id || "",
         attendedLessons: initialData.lessonsVisited?.length || 0,
         rating: initialData.score || 0,
         grade: initialData.grade || "junior",
+        dateJoined: initialData.dateJoined
+          ? new Date(initialData.dateJoined).toISOString().split("T")[0]
+          : new Date().toISOString().split("T")[0],
       });
     }
   }, [initialData]);
@@ -57,7 +70,16 @@ const InternFormModal = ({ onClose, branches, initialData, refresh }) => {
   };
 
   const validateForm = () => {
-    if (!form.name || !form.lastName || !form.username || (!initialData && !form.password) || !form.branch || !form.mentor || !form.grade) {
+    if (
+      !form.name ||
+      !form.lastName ||
+      !form.username ||
+      (!initialData && !form.password) ||
+      !form.branch ||
+      !form.mentor ||
+      !form.grade ||
+      !form.dateJoined
+    ) {
       setError("Пожалуйста, заполните все обязательные поля");
       return false;
     }
@@ -91,17 +113,16 @@ const InternFormModal = ({ onClose, branches, initialData, refresh }) => {
         branch: form.branch,
         mentor: form.mentor,
         grade: form.grade,
+        dateJoined: form.dateJoined,
       };
 
       if (initialData) {
-        // Placeholder for update endpoint (e.g., PUT /interns/:id)
         await api.interns.update(initialData._id, payload);
       } else {
-        // Create new intern
         await api.interns.create(payload);
       }
-      await refresh(); // Refresh intern list
-      onClose(); // Close modal on success
+      await refresh();
+      onClose();
     } catch (error) {
       setError(
         error.message || "Ошибка при сохранении стажёра. Попробуйте снова."
@@ -130,6 +151,7 @@ const InternFormModal = ({ onClose, branches, initialData, refresh }) => {
           </div>
         )}
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          {/* Имя */}
           <div className="form-control">
             <label className="label">
               <span className="label-text flex items-center gap-2">
@@ -146,6 +168,8 @@ const InternFormModal = ({ onClose, branches, initialData, refresh }) => {
               required
             />
           </div>
+
+          {/* Фамилия */}
           <div className="form-control">
             <label className="label">
               <span className="label-text flex items-center gap-2">
@@ -162,6 +186,8 @@ const InternFormModal = ({ onClose, branches, initialData, refresh }) => {
               required
             />
           </div>
+
+          {/* Username */}
           <div className="form-control">
             <label className="label">
               <span className="label-text flex items-center gap-2">
@@ -178,6 +204,8 @@ const InternFormModal = ({ onClose, branches, initialData, refresh }) => {
               required
             />
           </div>
+
+          {/* Password */}
           <div className="form-control">
             <label className="label">
               <span className="label-text flex items-center gap-2">
@@ -194,6 +222,8 @@ const InternFormModal = ({ onClose, branches, initialData, refresh }) => {
               required={!initialData}
             />
           </div>
+
+          {/* Branch */}
           <div className="form-control">
             <label className="label">
               <span className="label-text flex items-center gap-2">
@@ -215,6 +245,8 @@ const InternFormModal = ({ onClose, branches, initialData, refresh }) => {
               ))}
             </select>
           </div>
+
+          {/* Mentor */}
           <div className="form-control">
             <label className="label">
               <span className="label-text flex items-center gap-2">
@@ -237,6 +269,8 @@ const InternFormModal = ({ onClose, branches, initialData, refresh }) => {
               ))}
             </select>
           </div>
+
+          {/* Grade */}
           <div className="form-control">
             <label className="label">
               <span className="label-text flex items-center gap-2">
@@ -255,6 +289,8 @@ const InternFormModal = ({ onClose, branches, initialData, refresh }) => {
               <option value="senior">Senior</option>
             </select>
           </div>
+
+          {/* Attended lessons */}
           <div className="form-control">
             <label className="label">
               <span className="label-text flex items-center gap-2">
@@ -271,6 +307,8 @@ const InternFormModal = ({ onClose, branches, initialData, refresh }) => {
               min="0"
             />
           </div>
+
+          {/* Rating */}
           <div className="form-control">
             <label className="label">
               <span className="label-text flex items-center gap-2">
@@ -288,6 +326,24 @@ const InternFormModal = ({ onClose, branches, initialData, refresh }) => {
               max="5"
             />
           </div>
+
+          {/* Date joined */}
+          <div className="form-control">
+            <label className="label">
+              <span className="label-text flex items-center gap-2">
+                <Calendar className="h-4 w-4" /> Дата присоединения
+              </span>
+            </label>
+            <input
+              type="date"
+              name="dateJoined"
+              value={form.dateJoined}
+              onChange={handleChange}
+              className="input input-bordered w-full"
+              required
+            />
+          </div>
+
           <div className="modal-action">
             <button
               type="button"
