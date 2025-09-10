@@ -18,10 +18,10 @@ const InternFormModal = ({ onClose, branches, initialData, refresh }) => {
     password: "",
     branch: "",
     mentor: "",
-    attendedLessons: 0,
+    lessonsVisitedFake: 0,
     rating: 0,
     grade: "junior",
-    dateJoined: new Date().toISOString().split("T")[0], // по умолчанию сегодня
+    dateJoined: new Date().toISOString().split("T")[0],
   });
 
   const [mentors, setMentors] = useState([]);
@@ -41,7 +41,7 @@ const InternFormModal = ({ onClose, branches, initialData, refresh }) => {
         password: "",
         branch: initialData.branch?._id || "",
         mentor: initialData.mentor?._id || "",
-        attendedLessons: initialData.lessonsVisited?.length || 0,
+        lessonsVisitedFake: initialData.lessonsVisited?.length || 0, // <-- здесь
         rating: initialData.score || 0,
         grade: initialData.grade || "junior",
         dateJoined: initialData.dateJoined
@@ -87,7 +87,7 @@ const InternFormModal = ({ onClose, branches, initialData, refresh }) => {
       setError("Рейтинг должен быть от 0 до 5");
       return false;
     }
-    if (form.attendedLessons < 0) {
+    if (form.lessonsVisitedFake < 0) {
       setError("Количество уроков не может быть отрицательным");
       return false;
     }
@@ -114,6 +114,7 @@ const InternFormModal = ({ onClose, branches, initialData, refresh }) => {
         mentor: form.mentor,
         grade: form.grade,
         dateJoined: form.dateJoined,
+        lessonsVisitedFake: Number(form.lessonsVisitedFake), // <-- передаём на бэк
       };
 
       if (initialData) {
@@ -292,7 +293,7 @@ const InternFormModal = ({ onClose, branches, initialData, refresh }) => {
             </select>
           </div>
 
-          {/* Attended lessons */}
+          {/* Количество уроков */}
           <div className="form-control">
             <label className="label">
               <span className="label-text flex items-center gap-2">
@@ -301,8 +302,8 @@ const InternFormModal = ({ onClose, branches, initialData, refresh }) => {
             </label>
             <input
               type="number"
-              name="attendedLessons"
-              value={form.attendedLessons}
+              name="lessonsVisitedFake"
+              value={form.lessonsVisitedFake}
               onChange={handleChange}
               placeholder="Введите количество уроков"
               className="input input-bordered w-full"
