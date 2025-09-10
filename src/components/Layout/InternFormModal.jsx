@@ -285,7 +285,9 @@ const InternFormModal = ({ onClose, branches, initialData, refresh }) => {
               required
             >
               <option value="junior">Junior</option>
+              <option value="strong-junior">Strong Junior</option>
               <option value="middle">Middle</option>
+              <option value="strong-middle">Strong Middle</option>
               <option value="senior">Senior</option>
             </select>
           </div>
