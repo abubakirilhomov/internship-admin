@@ -16,9 +16,8 @@ const Interns = () => {
 
   const [showFormModal, setShowFormModal] = useState(false);
   const [showViolationsModal, setShowViolationsModal] = useState(false);
-
   const [selectedIntern, setSelectedIntern] = useState(null);
-    
+
   useEffect(() => {
     fetchInterns();
     fetchBranches();
@@ -65,6 +64,19 @@ const Interns = () => {
     }
   };
 
+  const handleDelete = async (id) => {
+    try {
+      setLoading(true);
+      await api.interns.delete(id);
+      await fetchInterns();
+    } catch (error) {
+      setError(error.message || "Ошибка при удалении стажёра");
+      console.error("Error deleting intern:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center h-96">
@@ -78,7 +90,12 @@ const Interns = () => {
       {error && (
         <div className="alert alert-error mb-4">
           {error}
-          <button className="btn btn-sm btn-circle" onClick={() => setError(null)}>✕</button>
+          <button
+            className="btn btn-sm btn-circle"
+            onClick={() => setError(null)}
+          >
+            ✕
+          </button>
         </div>
       )}
 
@@ -86,38 +103,52 @@ const Interns = () => {
         <h1 className="text-3xl font-bold">Интерны</h1>
         <button
           className="btn btn-primary gap-2"
-          onClick={() => { setSelectedIntern(null); setShowFormModal(true); }}
+          onClick={() => {
+            setSelectedIntern(null);
+            setShowFormModal(true);
+          }}
         >
           <Plus className="h-4 w-4" /> Добавить интерна
         </button>
       </div>
 
-      {/* Desktop table */}
       <InternsTable
         interns={interns}
         branches={branches}
         mentors={mentors}
         rules={rules}
-        onEdit={(intern) => { setSelectedIntern(intern); setShowFormModal(true); }}
-        onViolations={(intern) => { setSelectedIntern(intern); setShowViolationsModal(true); }}
+        onEdit={(intern) => {
+          setSelectedIntern(intern);
+          setShowFormModal(true);
+        }}
+        onDelete={handleDelete}
+        onViolations={(intern) => {
+          setSelectedIntern(intern);
+          setShowViolationsModal(true);
+        }}
         refresh={fetchInterns}
       />
 
-      {/* Mobile cards */}
       {/* <InternsCardList
         interns={interns}
         branches={branches}
         mentors={mentors}
         rules={rules}
-        onEdit={(intern) => { setSelectedIntern(intern); setShowFormModal(true); }}
-        onViolations={(intern) => { setSelectedIntern(intern); setShowViolationsModal(true); }}
+        onEdit={(intern) => {
+          setSelectedIntern(intern);
+          setShowFormModal(true);
+        }}
+        onDelete={handleDelete}
+        onViolations={(intern) => {
+          setSelectedIntern(intern);
+          setShowViolationsModal(true);
+        }}
         refresh={fetchInterns}
       /> */}
 
-      {/* Modals */}
       {showFormModal && (
         <InternFormModal
-          intern={selectedIntern}
+          initialData={selectedIntern}
           onClose={() => setShowFormModal(false)}
           refresh={fetchInterns}
           branches={branches}

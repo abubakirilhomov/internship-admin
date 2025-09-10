@@ -12,9 +12,8 @@ const Sidebar = () => {
     { name: 'Интерны', href: '/interns', icon: Users },
     { name: 'Менторы', href: '/mentors', icon: UserCheck },
     { name: 'Филиалы', href: '/branches', icon: Building2 },
-    { name: 'Статистика', href: '/statistics', icon: BarChart3 },
     { name: 'Рейтинг Интернов', href: '/interns/rating', icon: BarChart3 },
-    { name: 'Правила', href: '/rules', icon: Scale },
+    { name: 'Правила и нарушения', href: '/rules', icon: Scale },
   ];
 
   return (
