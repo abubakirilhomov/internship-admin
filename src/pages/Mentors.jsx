@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Pencil, Trash2, User, Lock, Building, Shield, X, Check } from 'lucide-react';
 import { api } from '../utils/api';
 
 const Mentors = () => {
@@ -11,8 +11,10 @@ const Mentors = () => {
   const [editId, setEditId] = useState(null);
   const [error, setError] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState({});
   const [formData, setFormData] = useState({
     name: '',
+    lastName: '',
     password: '',
     branch: '',
     role: 'mentor',
@@ -26,8 +28,7 @@ const Mentors = () => {
   useEffect(() => {
     const handleEsc = (e) => {
       if (e.key === 'Escape') {
-        setShowModal(false);
-        resetForm();
+        closeModal();
       }
     };
     window.addEventListener('keydown', handleEsc);
@@ -58,27 +59,36 @@ const Mentors = () => {
   };
 
   const validateForm = () => {
-    if (!formData.name) return 'Имя обязательно';
-    if (!formData.password || formData.password.length < 6) return 'Пароль должен содержать не менее 6 символов';
-    if (!formData.branch) return 'Выберите филиал';
-    if (!['mentor', 'admin'].includes(formData.role)) return 'Неверная роль';
-    return null;
+    const errors = {};
+    
+    if (!formData.name.trim()) errors.name = 'Имя обязательно';
+    if (!formData.lastName.trim()) errors.lastName = 'Фамилия обязательна';
+    if (!formData.password && !isEditing) errors.password = 'Пароль обязателен';
+    if (formData.password && formData.password.length < 6) errors.password = 'Пароль должен содержать не менее 6 символов';
+    if (!formData.branch) errors.branch = 'Выберите филиал';
+    if (!['mentor', 'admin'].includes(formData.role)) errors.role = 'Неверная роль';
+    
+    setFieldErrors(errors);
+    return Object.keys(errors).length === 0;
   };
 
   const resetForm = () => {
-    setFormData({ name: '', password: '', branch: '', role: 'mentor' });
+    setFormData({ name: '', lastName: '', password: '', branch: '', role: 'mentor' });
     setError(null);
+    setFieldErrors({});
     setIsEditing(false);
     setEditId(null);
   };
 
+  const closeModal = () => {
+    setShowModal(false);
+    setTimeout(resetForm, 150); // Wait for modal animation
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const validationError = validateForm();
-    if (validationError) {
-      setError(validationError);
-      return;
-    }
+    
+    if (!validateForm()) return;
 
     setIsSubmitting(true);
     try {
@@ -87,8 +97,7 @@ const Mentors = () => {
       } else {
         await api.mentors.create(formData);
       }
-      setShowModal(false);
-      resetForm();
+      closeModal();
       fetchMentors();
     } catch (error) {
       setError(isEditing ? 'Ошибка при обновлении ментора' : 'Ошибка при создании ментора');
@@ -101,6 +110,7 @@ const Mentors = () => {
   const handleEdit = (mentor) => {
     setFormData({
       name: mentor.name,
+      lastName: mentor.lastName || '',
       password: '',
       branch: mentor.branch?._id || mentor.branch || '',
       role: mentor.role || 'mentor',
@@ -166,6 +176,7 @@ const Mentors = () => {
               <thead>
                 <tr>
                   <th>Имя</th>
+                  <th>Фамилия</th>
                   <th>Филиал</th>
                   <th>Роль</th>
                   <th>Дата создания</th>
@@ -175,16 +186,8 @@ const Mentors = () => {
               <tbody>
                 {mentors.map((mentor) => (
                   <tr key={mentor._id}>
-                    <td>
-                      <div className="flex items-center gap-3">
-                        <div className="avatar text-center placeholder">
-                          <div className="bg-secondary text-secondary-content rounded-full w-8">
-                            <span className="text-xs">{mentor.name.charAt(0)}</span>
-                          </div>
-                        </div>
-                        <div className="font-bold">{mentor.name}</div>
-                      </div>
-                    </td>
+                    <td>{mentor.name}</td>
+                    <td>{mentor.lastName || '-'}</td>
                     <td>
                       {mentor.branch && (
                         <span className="badge badge-outline">
@@ -197,9 +200,7 @@ const Mentors = () => {
                         {mentor.role}
                       </span>
                     </td>
-                    <td>
-                      {new Date(mentor.createdAt).toLocaleDateString('ru-RU')}
-                    </td>
+                    <td>{new Date(mentor.createdAt).toLocaleDateString('ru-RU')}</td>
                     <td>
                       <div className="flex gap-2">
                         <button
@@ -224,84 +225,222 @@ const Mentors = () => {
         </div>
       </div>
 
+      {/* Enhanced Modal */}
       <dialog className={`modal ${showModal ? 'modal-open' : ''}`}>
-        <div className="modal-box">
-          <h3 className="font-bold text-lg mb-4">{isEditing ? 'Редактировать ментора' : 'Добавить ментора'}</h3>
-          <form onSubmit={handleSubmit}>
-            <div className="form-control mb-4">
-              <label className="label">
-                <span className="label-text">Имя</span>
-              </label>
-              <input
-                type="text"
-                className="input input-bordered"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                required
-              />
+        <div className="modal-box w-11/12 max-w-2xl relative">
+          {/* Modal Header */}
+          <div className="flex items-center justify-between mb-6 pb-4 border-b border-base-300">
+            <div className="flex items-center gap-3">
+              <div className={`p-2 rounded-lg ${isEditing ? 'bg-warning/10' : 'bg-primary/10'}`}>
+                {isEditing ? (
+                  <Pencil className={`h-6 w-6 ${isEditing ? 'text-warning' : 'text-primary'}`} />
+                ) : (
+                  <User className="h-6 w-6 text-primary" />
+                )}
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-base-content">
+                  {isEditing ? 'Редактировать ментора' : 'Добавить ментора'}
+                </h3>
+                <p className="text-sm text-base-content/60 mt-1">
+                  {isEditing ? 'Измените данные ментора' : 'Заполните информацию о новом менторе'}
+                </p>
+              </div>
             </div>
-            <div className="form-control mb-4">
+            <button
+              type="button"
+              className="btn btn-sm btn-circle btn-ghost"
+              onClick={closeModal}
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+
+          {/* Error Alert inside Modal */}
+          {error && (
+            <div className="alert alert-error mb-6">
+              <div className="flex">
+                <svg xmlns="http://www.w3.org/2000/svg" className="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                <span>{error}</span>
+              </div>
+            </div>
+          )}
+
+          {/* Form */}
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Name Fields Row */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="form-control">
+                <label className="label">
+                  <span className="label-text font-medium flex items-center gap-2">
+                    <User className="h-4 w-4" />
+                    Имя
+                  </span>
+                </label>
+                <input
+                  type="text"
+                  className={`input input-bordered ${fieldErrors.name ? 'input-error' : 'focus:input-primary'}`}
+                  value={formData.name}
+                  onChange={(e) => {
+                    setFormData({ ...formData, name: e.target.value });
+                    if (fieldErrors.name) setFieldErrors({ ...fieldErrors, name: null });
+                  }}
+                  placeholder="Введите имя"
+                />
+                {fieldErrors.name && (
+                  <label className="label">
+                    <span className="label-text-alt text-error">{fieldErrors.name}</span>
+                  </label>
+                )}
+              </div>
+
+              <div className="form-control">
+                <label className="label">
+                  <span className="label-text font-medium flex items-center gap-2">
+                    <User className="h-4 w-4" />
+                    Фамилия
+                  </span>
+                </label>
+                <input
+                  type="text"
+                  className={`input input-bordered ${fieldErrors.lastName ? 'input-error' : 'focus:input-primary'}`}
+                  value={formData.lastName}
+                  onChange={(e) => {
+                    setFormData({ ...formData, lastName: e.target.value });
+                    if (fieldErrors.lastName) setFieldErrors({ ...fieldErrors, lastName: null });
+                  }}
+                  placeholder="Введите фамилию"
+                />
+                {fieldErrors.lastName && (
+                  <label className="label">
+                    <span className="label-text-alt text-error">{fieldErrors.lastName}</span>
+                  </label>
+                )}
+              </div>
+            </div>
+
+            {/* Password Field */}
+            <div className="form-control">
               <label className="label">
-                <span className="label-text">Пароль</span>
+                <span className="label-text font-medium flex items-center gap-2">
+                  <Lock className="h-4 w-4" />
+                  Пароль
+                  {isEditing && <span className="text-xs text-base-content/60">(необязательно)</span>}
+                </span>
               </label>
               <input
                 type="password"
-                className="input input-bordered"
+                className={`input input-bordered ${fieldErrors.password ? 'input-error' : 'focus:input-primary'}`}
                 value={formData.password}
-                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                placeholder={isEditing ? 'Оставьте пустым, чтобы не менять' : ''}
-                required={!isEditing}
+                onChange={(e) => {
+                  setFormData({ ...formData, password: e.target.value });
+                  if (fieldErrors.password) setFieldErrors({ ...fieldErrors, password: null });
+                }}
+                placeholder={isEditing ? 'Оставьте пустым, чтобы не менять' : 'Введите пароль (мин. 6 символов)'}
               />
+              {fieldErrors.password && (
+                <label className="label">
+                  <span className="label-text-alt text-error">{fieldErrors.password}</span>
+                </label>
+              )}
+              {!isEditing && (
+                <label className="label">
+                  <span className="label-text-alt">Минимум 6 символов</span>
+                </label>
+              )}
             </div>
-            <div className="form-control mb-4">
-              <label className="label">
-                <span className="label-text">Филиал</span>
-              </label>
-              <select
-                className="select select-bordered"
-                value={formData.branch}
-                onChange={(e) => setFormData({ ...formData, branch: e.target.value })}
-                required
-              >
-                <option value="">Выберите филиал</option>
-                {branches.map((branch) => (
-                  <option key={branch._id} value={branch._id}>
-                    {branch.name}
-                  </option>
-                ))}
-              </select>
+
+            {/* Branch and Role Row */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="form-control">
+                <label className="label">
+                  <span className="label-text font-medium flex items-center gap-2">
+                    <Building className="h-4 w-4" />
+                    Филиал
+                  </span>
+                </label>
+                <select
+                  className={`select select-bordered ${fieldErrors.branch ? 'select-error' : 'focus:select-primary'}`}
+                  value={formData.branch}
+                  onChange={(e) => {
+                    setFormData({ ...formData, branch: e.target.value });
+                    if (fieldErrors.branch) setFieldErrors({ ...fieldErrors, branch: null });
+                  }}
+                >
+                  <option value="">Выберите филиал</option>
+                  {branches.map((branch) => (
+                    <option key={branch._id} value={branch._id}>
+                      {branch.name}
+                    </option>
+                  ))}
+                </select>
+                {fieldErrors.branch && (
+                  <label className="label">
+                    <span className="label-text-alt text-error">{fieldErrors.branch}</span>
+                  </label>
+                )}
+              </div>
+
+              <div className="form-control">
+                <label className="label">
+                  <span className="label-text font-medium flex items-center gap-2">
+                    <Shield className="h-4 w-4" />
+                    Роль
+                  </span>
+                </label>
+                <select
+                  className={`select select-bordered ${fieldErrors.role ? 'select-error' : 'focus:select-primary'}`}
+                  value={formData.role}
+                  onChange={(e) => {
+                    setFormData({ ...formData, role: e.target.value });
+                    if (fieldErrors.role) setFieldErrors({ ...fieldErrors, role: null });
+                  }}
+                >
+                  <option value="mentor">Ментор</option>
+                  <option value="admin">Администратор</option>
+                </select>
+                {fieldErrors.role && (
+                  <label className="label">
+                    <span className="label-text-alt text-error">{fieldErrors.role}</span>
+                  </label>
+                )}
+              </div>
             </div>
-            <div className="form-control mb-4">
-              <label className="label">
-                <span className="label-text">Роль</span>
-              </label>
-              <select
-                className="select select-bordered"
-                value={formData.role}
-                onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-                required
-              >
-                <option value="mentor">Ментор</option>
-                <option value="admin">Админ</option>
-              </select>
-            </div>
-            <div className="modal-action">
+
+            {/* Action Buttons */}
+            <div className="flex justify-end gap-3 pt-4 border-t border-base-300">
               <button
                 type="button"
-                className="btn"
-                onClick={() => {
-                  setShowModal(false);
-                  resetForm();
-                }}
+                className="btn btn-outline"
+                onClick={closeModal}
+                disabled={isSubmitting}
               >
+                <X className="h-4 w-4" />
                 Отмена
               </button>
-              <button type="submit" className="btn btn-primary" disabled={isSubmitting}>
-                {isSubmitting ? 'Сохранение...' : isEditing ? 'Обновить' : 'Создать'}
+              <button
+                type="submit"
+                className={`btn ${isEditing ? 'btn-warning' : 'btn-primary'} min-w-[120px]`}
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? (
+                  <>
+                    <span className="loading loading-spinner loading-sm"></span>
+                    Сохранение...
+                  </>
+                ) : (
+                  <>
+                    <Check className="h-4 w-4" />
+                    {isEditing ? 'Обновить' : 'Создать'}
+                  </>
+                )}
               </button>
             </div>
           </form>
         </div>
+        <form method="dialog" className="modal-backdrop">
+          <button type="button" onClick={closeModal}>close</button>
+        </form>
       </dialog>
     </div>
   );
