@@ -1,4 +1,4 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL;
+const API_BASE_URL = import.meta.env.VITE_API_URL1;
 console.log(API_BASE_URL);
 const user = JSON.parse(localStorage.getItem("user"));
 const getAuthHeaders = () => {

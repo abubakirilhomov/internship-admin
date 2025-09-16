@@ -37,6 +37,7 @@ const Interns = () => {
   const [showViolationsModal, setShowViolationsModal] = useState(false);
   const [selectedIntern, setSelectedIntern] = useState(null);
   const [period, setPeriod] = useState("month"); // Для фильтра статистики
+  const [grades, setGrades] = useState({});
 
   useEffect(() => {
     fetchInterns();
@@ -91,8 +92,11 @@ const Interns = () => {
 
   const fetchStats = async () => {
     try {
-      const data = await api.lessons.getAttendanceStats({ period });
-      setStats(data);
+      // Pass period as query param; add custom if needed
+      const params = period === "custom" ? { startDate: "2025-09-01", endDate: "2025-09-13" } : { period };
+      const data = await api.lessons.getAttendanceStats(params);
+      setStats(data.stats || data); // Fallback if direct array
+      setGrades(data.grades || {});
     } catch (error) {
       setError(error.message || "Ошибка при загрузке статистики");
     }
@@ -106,7 +110,7 @@ const Interns = () => {
       await fetchStats();
     } catch (error) {
       setError(error.message || "Ошибка при удалении стажёра");
-      console.error("Error deleting intern:", error); // Исправлено err -> error
+      console.error("Error deleting intern:", error);
     } finally {
       setLoading(false);
     }
@@ -174,6 +178,7 @@ const Interns = () => {
           >
             <option value="month">Месяц</option>
             <option value="week">Неделя</option>
+            <option value="custom">Период</option> {/* Optional: Add if using start/end */}
           </select>
         </div>
         <div className="overflow-x-auto">
@@ -182,6 +187,7 @@ const Interns = () => {
               <tr>
                 <th>Интерн</th>
                 <th>Посещено уроков</th>
+                <th>Норма</th>
                 <th>% нормы</th>
                 <th>Выполняет норму</th>
               </tr>
@@ -190,12 +196,13 @@ const Interns = () => {
               {stats.map((stat) => (
                 <tr
                   key={stat.internId}
-                  className={stat.meetsNorm ? "" : "bg-red-100"}
+                  className={stat.meetsNorm === false ? "bg-red-100" : ""} // Handle null
                 >
                   <td>{stat.name}</td>
                   <td>{stat.attended}</td>
-                  <td>{stat.percentage}%</td>
-                  <td>{stat.meetsNorm ? "✅" : "❌"}</td>
+                  <td>{stat.norm ?? "N/A"}</td>
+                  <td>{stat.percentage ?? "N/A"}%</td>
+                  <td>{stat.meetsNorm === null ? "N/A" : stat.meetsNorm ? "✅" : "❌"}</td>
                 </tr>
               ))}
             </tbody>
@@ -219,7 +226,7 @@ const Interns = () => {
                 },
                 {
                   label: "Норма",
-                  data: stats.map(() => calculateNorm(period)),
+                  data: stats.map((s) => s.norm ?? 0), // Per-intern norm; 0 if null
                   backgroundColor: "rgba(255, 99, 132, 0.3)",
                   borderColor: "rgba(255, 99, 132, 1)",
                   borderWidth: 1,
@@ -242,7 +249,7 @@ const Interns = () => {
                 title: {
                   display: true,
                   text: `Посещаемость за ${
-                    period === "month" ? "месяц" : "неделю"
+                    period === "month" ? "месяц" : period === "week" ? "неделю" : "период"
                   }`,
                 },
               },
@@ -275,6 +282,7 @@ const Interns = () => {
   );
 };
 
+// Reference functions (unused in chart now, but kept for legacy)
 const calculateMonthlyNorm = (date) => {
   const year = date.getFullYear();
   const month = date.getMonth();
@@ -282,13 +290,13 @@ const calculateMonthlyNorm = (date) => {
   let sundays = 0;
   for (let day = 1; day <= daysInMonth; day++) {
     const d = new Date(year, month, day);
-    if (d.getDay() === 0) sundays++;
+    if (d.getDay() === 0) sundays++; // Sunday
   }
   return (daysInMonth - sundays) * 2;
 };
 
 const calculateNorm = (period) => {
-  if (period === "week") return 12; // 2 урока * 6 дней (пн-сб)
+  if (period === "week") return 12; // Legacy: 2 lessons * 6 days
   return calculateMonthlyNorm(new Date());
 };
 
