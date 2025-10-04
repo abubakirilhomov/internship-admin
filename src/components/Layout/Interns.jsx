@@ -56,6 +56,7 @@ const Interns = () => {
       setLoading(true);
       const data = await api.interns.getAll();
       setInterns(data);
+
     } catch (error) {
       setError(error.message || "Ошибка при загрузке интернов");
     } finally {
@@ -93,7 +94,10 @@ const Interns = () => {
   const fetchStats = async () => {
     try {
       // Pass period as query param; add custom if needed
-      const params = period === "custom" ? { startDate: "2025-09-01", endDate: "2025-09-13" } : { period };
+      const params =
+        period === "custom"
+          ? { startDate: "2025-09-01", endDate: "2025-09-13" }
+          : { period };
       const data = await api.lessons.getAttendanceStats(params);
       setStats(data.stats || data); // Fallback if direct array
       setGrades(data.grades || {});
@@ -178,7 +182,8 @@ const Interns = () => {
           >
             <option value="month">Месяц</option>
             <option value="week">Неделя</option>
-            <option value="custom">Период</option> {/* Optional: Add if using start/end */}
+            <option value="custom">Период</option>
+            <option value="prevMonth">Прошлый месяц</option>
           </select>
         </div>
         <div className="overflow-x-auto">
@@ -202,7 +207,13 @@ const Interns = () => {
                   <td>{stat.attended}</td>
                   <td>{stat.norm ?? "N/A"}</td>
                   <td>{stat.percentage ?? "N/A"}%</td>
-                  <td>{stat.meetsNorm === null ? "N/A" : stat.meetsNorm ? "✅" : "❌"}</td>
+                  <td>
+                    {stat.meetsNorm === null
+                      ? "N/A"
+                      : stat.meetsNorm
+                      ? "✅"
+                      : "❌"}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -249,7 +260,13 @@ const Interns = () => {
                 title: {
                   display: true,
                   text: `Посещаемость за ${
-                    period === "month" ? "месяц" : period === "week" ? "неделю" : "период"
+                    period === "month"
+                      ? "текущий месяц"
+                      : period === "previousMonth"
+                      ? "прошлый месяц"
+                      : period === "week"
+                      ? "неделю"
+                      : "период"
                   }`,
                 },
               },

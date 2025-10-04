@@ -1,5 +1,4 @@
 const API_BASE_URL = import.meta.env.VITE_API_URL;
-console.log(API_BASE_URL);
 const user = JSON.parse(localStorage.getItem("user"));
 const getAuthHeaders = () => {
   const token = localStorage.getItem("token");
@@ -26,13 +25,27 @@ export const api = {
       });
       return response.json();
     },
+    upgrade: async (id, newGrade) => {
+      const response = await fetch(`${API_BASE_URL}/interns/${id}/upgrade`, {
+        method: "PATCH",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ newGrade }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || `Ошибка при повышении грейда`);
+      }
+
+      return response.json();
+    },
+
     create: async (data) => {
       const response = await fetch(`${API_BASE_URL}/interns`, {
         method: "POST",
         headers: getAuthHeaders(),
         body: JSON.stringify(data),
       });
-      console.log(data);
       return response.json();
     },
     getRating: async () => {
@@ -148,16 +161,31 @@ export const api = {
         method: "DELETE",
         headers: getAuthHeaders(),
       });
-      return response.json()
+      return response.json();
     },
   },
   lessons: {
-    getAttendanceStats: async (params) => {
-    const response = await fetch(
-      `${API_BASE_URL}/lessons/attendance-stats?${new URLSearchParams(params)}`, {
-        headers: getAuthHeaders(),
-      })
-    return response.json();
-  },
+    getAttendanceStats: async (params = {}) => {
+      if (params.period === "previousMonth") {
+        const now = new Date();
+        const start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        const end = new Date(now.getFullYear(), now.getMonth(), 0);
+
+        params.startDate = start.toISOString().split("T")[0];
+        params.endDate = end.toISOString().split("T")[0];
+
+        delete params.period;
+      }
+
+      const query = new URLSearchParams(params).toString();
+      const response = await fetch(
+        `${API_BASE_URL}/lessons/attendance-stats?${query}`,
+        {
+          headers: getAuthHeaders(),
+        }
+      );
+
+      return response.json();
+    },
   },
 };
