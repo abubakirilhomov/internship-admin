@@ -39,6 +39,7 @@ const InternsTable = ({ interns, onEdit, onDelete, rules, refresh }) => {
         <thead>
           <tr>
             <th>Имя</th>
+            <th>Фамилия</th>
             <th>Филиал</th>
             <th>Уроки</th>
             <th>Грейд</th>
@@ -53,6 +54,7 @@ const InternsTable = ({ interns, onEdit, onDelete, rules, refresh }) => {
               onClick={() => setSelectedIntern(intern)}
             >
               <td>{intern.name}</td>
+              <td>{intern.lastName}</td>
               <td>{intern.branch?.name || "—"}</td>
               <td>{intern?.lessonsVisited?.length || 0}</td>
               <td className="capitalize">{intern.grade}</td>
