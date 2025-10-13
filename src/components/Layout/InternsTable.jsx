@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { Trash2, Edit, ArrowUpCircle } from "lucide-react";
 import { toast } from "react-toastify";
 import { api } from "../../utils/api";
@@ -9,6 +9,27 @@ const InternsTable = ({ interns, onEdit, onDelete, rules, refresh }) => {
   const [showUpgradeModal, setShowUpgradeModal] = useState(null);
   const [selectedGrade, setSelectedGrade] = useState("strongJunior");
 
+  // 🔹 Получаем список всех уникальных филиалов
+  const branches = useMemo(() => {
+    const list = interns
+      .map((i) => i.branch)
+      .filter((b) => b && b.name)
+      .reduce((acc, branch) => {
+        if (!acc.find((x) => x._id === branch._id)) acc.push(branch);
+        return acc;
+      }, []);
+    return list;
+  }, [interns]);
+
+  // 🔹 Для фильтрации по филиалу
+  const [selectedBranch, setSelectedBranch] = useState("all");
+
+  // 🔹 Фильтруем интернов
+  const filteredInterns = useMemo(() => {
+    if (selectedBranch === "all") return interns;
+    return interns.filter((i) => i.branch?._id === selectedBranch);
+  }, [interns, selectedBranch]);
+
   const handleDeleteConfirm = (id) => {
     onDelete(id);
     setShowDeleteModal(null);
@@ -16,10 +37,10 @@ const InternsTable = ({ interns, onEdit, onDelete, rules, refresh }) => {
 
   const handleUpgrade = async () => {
     try {
-      const res = await api.interns.upgrade(showUpgradeModal, selectedGrade);
+      await api.interns.upgrade(showUpgradeModal, selectedGrade);
       toast.success(`🎉 Грейд повышен до "${selectedGrade}"`);
       setShowUpgradeModal(null);
-      refresh(); // перезагрузить таблицу
+      refresh();
     } catch (err) {
       toast.error(err.message || "Ошибка при повышении грейда");
     }
@@ -35,6 +56,23 @@ const InternsTable = ({ interns, onEdit, onDelete, rules, refresh }) => {
 
   return (
     <div className="overflow-x-auto">
+      {/* 🔹 Фильтр по филиалу */}
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-xl font-bold">Стажёры</h2>
+        <select
+          className="select select-bordered w-64"
+          value={selectedBranch}
+          onChange={(e) => setSelectedBranch(e.target.value)}
+        >
+          <option value="all">Все филиалы</option>
+          {branches.map((b) => (
+            <option key={b._id} value={b._id}>
+              {b.name}
+            </option>
+          ))}
+        </select>
+      </div>
+
       <table className="table table-zebra w-full">
         <thead>
           <tr>
@@ -47,45 +85,53 @@ const InternsTable = ({ interns, onEdit, onDelete, rules, refresh }) => {
           </tr>
         </thead>
         <tbody>
-          {interns.map((intern) => (
-            <tr
-              key={intern._id}
-              className="hover:bg-base-200 transition"
-              onClick={() => setSelectedIntern(intern)}
-            >
-              <td>{intern.name}</td>
-              <td>{intern.lastName}</td>
-              <td>{intern.branch?.name || "—"}</td>
-              <td>{intern?.lessonsVisited?.length || 0}</td>
-              <td className="capitalize">{intern.grade}</td>
-              <td
-                className="flex justify-center gap-2"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <button
-                  onClick={() => onEdit(intern)}
-                  className="btn btn-sm btn-primary"
-                  title="Редактировать"
-                >
-                  <Edit className="h-4 w-4" />
-                </button>
-                <button
-                  onClick={() => setShowUpgradeModal(intern._id)}
-                  className="btn btn-sm btn-success"
-                  title="Повысить грейд"
-                >
-                  <ArrowUpCircle className="h-4 w-4" />
-                </button>
-                <button
-                  onClick={() => setShowDeleteModal(intern._id)}
-                  className="btn btn-sm btn-error"
-                  title="Удалить"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
+          {filteredInterns.length === 0 ? (
+            <tr>
+              <td colSpan="6" className="text-center py-6 text-gray-500">
+                Нет стажёров для выбранного филиала
               </td>
             </tr>
-          ))}
+          ) : (
+            filteredInterns.map((intern) => (
+              <tr
+                key={intern._id}
+                className="hover:bg-base-200 transition"
+                onClick={() => setSelectedIntern(intern)}
+              >
+                <td>{intern.name}</td>
+                <td>{intern.lastName}</td>
+                <td>{intern.branch?.name || "—"}</td>
+                <td>{intern?.lessonsVisited?.length || 0}</td>
+                <td className="capitalize">{intern.grade}</td>
+                <td
+                  className="flex justify-center gap-2"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <button
+                    onClick={() => onEdit(intern)}
+                    className="btn btn-sm btn-primary"
+                    title="Редактировать"
+                  >
+                    <Edit className="h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={() => setShowUpgradeModal(intern._id)}
+                    className="btn btn-sm btn-success"
+                    title="Повысить грейд"
+                  >
+                    <ArrowUpCircle className="h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={() => setShowDeleteModal(intern._id)}
+                    className="btn btn-sm btn-error"
+                    title="Удалить"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </td>
+              </tr>
+            ))
+          )}
         </tbody>
       </table>
 
