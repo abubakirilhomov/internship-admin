@@ -265,7 +265,7 @@ const InternFormModal = ({ onClose, branches, initialData, refresh }) => {
               <option value="">Выбери ментора</option>
               {mentors.map((m) => (
                 <option key={m._id} value={m._id}>
-                  {m.name}
+                  {m.name} {m?.lastName || ""}
                 </option>
               ))}
             </select>
