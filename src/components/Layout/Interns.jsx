@@ -40,7 +40,9 @@ const Interns = () => {
   const [showViolationsModal, setShowViolationsModal] = useState(false);
   const [selectedIntern, setSelectedIntern] = useState(null);
   const [period, setPeriod] = useState("month");
-  const [startDate, setStartDate] = useState(new Date(new Date().getFullYear(), new Date().getMonth(), 1));
+  const [startDate, setStartDate] = useState(
+    new Date(new Date().getFullYear(), new Date().getMonth(), 1)
+  );
   const [endDate, setEndDate] = useState(new Date());
   const [selectedBranch, setSelectedBranch] = useState("all");
 
@@ -48,12 +50,13 @@ const Interns = () => {
     const fetchInitialData = async () => {
       try {
         setLoading(true);
-        const [internsData, branchesData, mentorsData, rulesData] = await Promise.all([
-          api.interns.getAll(),
-          api.branches.getAll(),
-          api.mentors.getAll(),
-          api.rules.getAll(),
-        ]);
+        const [internsData, branchesData, mentorsData, rulesData] =
+          await Promise.all([
+            api.interns.getAll(),
+            api.branches.getAll(),
+            api.mentors.getAll(),
+            api.rules.getAll(),
+          ]);
         setInterns(internsData);
         setBranches(branchesData);
         setMentors(mentorsData);
@@ -82,7 +85,9 @@ const Interns = () => {
       setLoadingStats(true);
       const params =
         period === "custom"
-          ? { startDate: startDate.toISOString().split("T")[0], endDate: endDate.toISOString().split("T")[0] }
+          ? { startDate, endDate }
+          : period === "month_prev"
+          ? { period: "month", prevMonth: true }
           : { period };
       const data = await api.lessons.getAttendanceStats(params);
       setStats(data.stats || data);
@@ -115,7 +120,7 @@ const Interns = () => {
       </div>
     );
   }
-  console.log(stats[0])
+  console.log(stats[0]);
   const filteredStats =
     selectedBranch === "all"
       ? stats
@@ -180,7 +185,7 @@ const Interns = () => {
             <option value="month">Месяц</option>
             <option value="week">Неделя</option>
             <option value="custom">Период</option>
-            <option value="prevMonth">Прошлый месяц</option>
+            <option value="month_prev">Прошлый месяц</option>
           </select>
 
           <select

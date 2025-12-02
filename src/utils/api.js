@@ -97,6 +97,7 @@ export const api = {
       const response = await fetch(`${API_BASE_URL}/branches`, {
         headers: getAuthHeaders(),
       });
+      console.log(response.json)
       return response.json();
     },
     create: async (data) => {
