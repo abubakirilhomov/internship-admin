@@ -11,6 +11,8 @@ import {
   CategoryScale,
   LinearScale,
   BarElement,
+  PointElement,
+  LineElement,
   Title,
   Tooltip,
   Legend,
@@ -22,6 +24,8 @@ ChartJS.register(
   CategoryScale,
   LinearScale,
   BarElement,
+  PointElement,
+  LineElement,
   Title,
   Tooltip,
   Legend
@@ -45,6 +49,7 @@ const Interns = () => {
   );
   const [endDate, setEndDate] = useState(new Date());
   const [selectedBranch, setSelectedBranch] = useState("all");
+  const [quickFilter, setQuickFilter] = useState("all");
 
   useEffect(() => {
     const fetchInitialData = async () => {
@@ -87,8 +92,8 @@ const Interns = () => {
         period === "custom"
           ? { startDate, endDate }
           : period === "month_prev"
-          ? { period: "month", prevMonth: true }
-          : { period };
+            ? { period: "month", prevMonth: true }
+            : { period };
       const data = await api.lessons.getAttendanceStats(params);
       setStats(data.stats || data);
     } catch (error) {
@@ -125,6 +130,15 @@ const Interns = () => {
     selectedBranch === "all"
       ? stats
       : stats.filter((s) => s.branchId === selectedBranch);
+
+  // 🔹 Применяем быстрый фильтр
+  const quickFilteredStats = filteredStats.filter((stat) => {
+    if (quickFilter === "all") return true;
+    if (quickFilter === "nearDeadline") return stat.nearDeadline;
+    if (quickFilter === "concession") return stat.canPromoteWithConcession;
+    if (quickFilter === "meetsNorm") return stat.meetsNorm;
+    return true;
+  });
 
   return (
     <div className="p-6">
@@ -173,6 +187,73 @@ const Interns = () => {
           await fetchStats();
         }}
       />
+
+      {/* 📊 Панель рекомендаций */}
+      {!loadingStats && stats.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+          <div
+            className="stats shadow bg-orange-100 border border-orange-300 cursor-pointer hover:shadow-lg transition"
+            onClick={() => setQuickFilter("concession")}
+          >
+            <div className="stat">
+              <div className="stat-figure text-orange-600">
+                <span className="text-4xl">🎁</span>
+              </div>
+              <div className="stat-title">Кандидаты на уступку</div>
+              <div className="stat-value text-orange-600">
+                {stats.filter((s) => s.canPromoteWithConcession).length}
+              </div>
+              <div className="stat-desc">50-60% + близко к дедлайну</div>
+            </div>
+          </div>
+
+          <div
+            className="stats shadow bg-yellow-100 border border-yellow-300 cursor-pointer hover:shadow-lg transition"
+            onClick={() => setQuickFilter("nearDeadline")}
+          >
+            <div className="stat">
+              <div className="stat-figure text-yellow-600">
+                <span className="text-4xl">⚠️</span>
+              </div>
+              <div className="stat-title">Близкие к дедлайну</div>
+              <div className="stat-value text-yellow-600">
+                {stats.filter((s) => s.nearDeadline).length}
+              </div>
+              <div className="stat-desc">≤7 дней до конца срока</div>
+            </div>
+          </div>
+
+          <div
+            className="stats shadow bg-green-100 border border-green-300 cursor-pointer hover:shadow-lg transition"
+            onClick={() => setQuickFilter("meetsNorm")}
+          >
+            <div className="stat">
+              <div className="stat-figure text-green-600">
+                <span className="text-4xl">✅</span>
+              </div>
+              <div className="stat-title">Выполняют норму</div>
+              <div className="stat-value text-green-600">
+                {stats.filter((s) => s.meetsNorm).length}
+              </div>
+              <div className="stat-desc">≥100% плана</div>
+            </div>
+          </div>
+
+          <div
+            className="stats shadow bg-blue-100 border border-blue-300 cursor-pointer hover:shadow-lg transition"
+            onClick={() => setQuickFilter("all")}
+          >
+            <div className="stat">
+              <div className="stat-figure text-blue-600">
+                <span className="text-4xl">📊</span>
+              </div>
+              <div className="stat-title">Всего интернов</div>
+              <div className="stat-value text-blue-600">{stats.length}</div>
+              <div className="stat-desc">В системе</div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="mt-8">
         <div className="flex justify-between items-center mb-4">
@@ -238,60 +319,204 @@ const Interns = () => {
           </div>
         ) : (
           <>
+            <div className="alert alert-info mb-4">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" className="stroke-current shrink-0 w-6 h-6">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+              </svg>
+              <div>
+                <h3 className="font-bold">Как рассчитывается норма?</h3>
+                <div className="text-sm">
+                  Норма для каждого интерна рассчитывается индивидуально на основе:
+                  <ul className="list-disc list-inside mt-1">
+                    <li><strong>Грейда:</strong> Junior (24/мес), Strong Junior (40), Middle (50), Strong Middle (60), Senior (80)</li>
+                    <li><strong>Дней работы:</strong> Сколько дней УЖЕ проработал с момента найма или повышения</li>
+                    <li><strong>Испытательный период:</strong> Junior/Strong Junior (1 мес), Middle/Strong Middle (2 мес), Senior (3 мес)</li>
+                  </ul>
+                  <div className="mt-1 font-mono text-xs bg-base-200 p-1 rounded inline-block">
+                    Норма = (дни_уже_проработанные / 30) × уроков_по_грейду
+                  </div>
+                  <p className="mt-2 text-xs opacity-75">
+                    💡 Новички не обязаны выполнять полную месячную норму, если работают меньше месяца
+                  </p>
+                  <p className="mt-1 text-xs opacity-75">
+                    🎁 Оранжевая подсветка = можно повысить с уступкой (50-60% + близко к дедлайну)
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* 🔹 Кнопки быстрой фильтрации */}
+            <div className="flex gap-2 mb-4 flex-wrap">
+              <button
+                className={`btn btn-sm ${quickFilter === "all" ? "btn-primary" : "btn-outline"
+                  }`}
+                onClick={() => setQuickFilter("all")}
+              >
+                Все интерны ({filteredStats.length})
+              </button>
+              <button
+                className={`btn btn-sm ${quickFilter === "nearDeadline" ? "btn-warning" : "btn-outline btn-warning"
+                  }`}
+                onClick={() => setQuickFilter("nearDeadline")}
+              >
+                ⚠️ Близкие к дедлайну ({filteredStats.filter(s => s.nearDeadline).length})
+              </button>
+              <button
+                className={`btn btn-sm ${quickFilter === "concession" ? "btn-accent" : "btn-outline btn-accent"
+                  }`}
+                onClick={() => setQuickFilter("concession")}
+              >
+                🎁 Кандидаты на уступку ({filteredStats.filter(s => s.canPromoteWithConcession).length})
+              </button>
+              <button
+                className={`btn btn-sm ${quickFilter === "meetsNorm" ? "btn-success" : "btn-outline btn-success"
+                  }`}
+                onClick={() => setQuickFilter("meetsNorm")}
+              >
+                ✅ Выполняют норму ({filteredStats.filter(s => s.meetsNorm).length})
+              </button>
+            </div>
+
             <div className="overflow-x-auto">
               <table className="table table-zebra w-full">
                 <thead>
                   <tr>
                     <th>Интерн</th>
-                    <th>Посещено уроков</th>
+                    <th>Грейд</th>
+                    <th>Оценённые</th>
+                    <th>Ожидают оценки</th>
                     <th>Норма</th>
-                    <th>% нормы</th>
-                    <th>Выполняет норму</th>
+                    <th>% выполнения</th>
+                    <th>Срок грейда</th>
+                    <th>Статус</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredStats.map((stat) => (
-                    <tr
-                      key={stat.internId}
-                      className={stat.meetsNorm === false ? "bg-red-100" : ""} // Handle null
-                    >
-                      <td>{stat.name}</td>
-                      <td>{stat.attended}</td>
-                      <td>{stat.norm ?? "N/A"}</td>
-                      <td>{stat.percentage ?? "N/A"}%</td>
-                      <td>
-                        {stat.meetsNorm === null
-                          ? "N/A"
-                          : stat.meetsNorm
-                          ? "✅"
-                          : "❌"}
-                      </td>
-                    </tr>
-                  ))}
+                  {quickFilteredStats.map((stat) => {
+                    const percentage = stat.percentage || 0;
+                    let rowColor = "";
+
+                    // 🎁 Приоритет: возможность уступки
+                    if (stat.canPromoteWithConcession) {
+                      rowColor = "bg-orange-100 border-l-4 border-orange-500";
+                    } else if (percentage >= 100) {
+                      rowColor = "bg-green-50";
+                    } else if (percentage >= 70) {
+                      rowColor = "bg-yellow-50";
+                    } else if (percentage > 0) {
+                      rowColor = "bg-red-50";
+                    }
+
+                    // ⚠️ Дополнительное предупреждение о дедлайне
+                    if (stat.nearDeadline && !stat.canPromoteWithConcession && percentage < 70) {
+                      rowColor += " border-l-4 border-yellow-600";
+                    }
+
+                    return (
+                      <tr key={stat.internId} className={rowColor}>
+                        <td className="font-medium">{stat.name}</td>
+                        <td>
+                          <span className="badge badge-sm">
+                            {stat.grade}
+                          </span>
+                        </td>
+                        <td>
+                          <span className="badge badge-success badge-sm">
+                            {stat.confirmedCount}
+                          </span>
+                        </td>
+                        <td>
+                          {stat.pendingCount > 0 ? (
+                            <span className="badge badge-warning badge-sm">
+                              {stat.pendingCount}
+                            </span>
+                          ) : (
+                            <span className="text-gray-400">0</span>
+                          )}
+                        </td>
+                        <td>{stat.norm ?? "—"}</td>
+                        <td>
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold">{percentage}%</span>
+                            {stat.canPromoteWithConcession && (
+                              <span className="text-xl" title="Можно повысить с уступкой (50-60% + близко к дедлайну)">🎁</span>
+                            )}
+                            {!stat.canPromoteWithConcession && (
+                              percentage >= 100 ? (
+                                <span className="text-green-600">✓</span>
+                              ) : percentage >= 70 ? (
+                                <span className="text-yellow-600">⚠</span>
+                              ) : (
+                                <span className="text-red-600">✗</span>
+                              )
+                            )}
+                          </div>
+                        </td>
+                        <td>
+                          <div className="flex flex-col">
+                            <span className="font-semibold">
+                              {stat.daysWorking} / {stat.trialPeriodDays} дн.
+                            </span>
+                            {stat.nearDeadline && (
+                              <span className="text-xs text-warning font-semibold">
+                                ⚠ {stat.daysRemaining} дн. осталось
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td>
+                          {stat.meetsNorm === null ? (
+                            "—"
+                          ) : stat.meetsNorm ? (
+                            <span className="text-green-600 font-semibold">Выполняет</span>
+                          ) : (
+                            <span className="text-red-600 font-semibold">Не выполняет</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
 
-            {filteredStats.length > 0 && (
+            {quickFilteredStats.length > 0 && (
               <div className="mt-8">
                 <h3 className="text-xl font-bold mb-4">График посещаемости</h3>
                 <Bar
+                  key={`chart-${period}-${selectedBranch}`}
                   data={{
-                    labels: filteredStats.map((s) => s.name),
+                    labels: quickFilteredStats.map((s) => s.name),
                     datasets: [
                       {
-                        label: "Посещено уроков",
-                        data: filteredStats.map((s) => s.attended),
-                        backgroundColor: "rgba(75, 192, 192, 0.6)",
-                        borderColor: "rgba(75, 192, 192, 1)",
+                        label: "Оценённые уроки",
+                        data: quickFilteredStats.map((s) => s.confirmedCount),
+                        backgroundColor: quickFilteredStats.map((s) =>
+                          s.canPromoteWithConcession
+                            ? "rgba(251, 146, 60, 0.6)" // Оранжевый для уступки
+                            : "rgba(34, 197, 94, 0.6)"  // Зелёный обычный
+                        ),
+                        borderColor: quickFilteredStats.map((s) =>
+                          s.canPromoteWithConcession
+                            ? "rgba(251, 146, 60, 1)"
+                            : "rgba(34, 197, 94, 1)"
+                        ),
+                        borderWidth: 1,
+                      },
+                      {
+                        label: "Ожидают оценки",
+                        data: quickFilteredStats.map((s) => s.pendingCount),
+                        backgroundColor: "rgba(251, 191, 36, 0.6)",
+                        borderColor: "rgba(251, 191, 36, 1)",
                         borderWidth: 1,
                       },
                       {
                         label: "Норма",
-                        data: filteredStats.map((s) => s.norm ?? 0), // Per-intern norm; 0 if null
-                        backgroundColor: "rgba(255, 99, 132, 0.3)",
-                        borderColor: "rgba(255, 99, 132, 1)",
-                        borderWidth: 1,
+                        data: quickFilteredStats.map((s) => s.norm ?? 0),
+                        backgroundColor: "rgba(239, 68, 68, 0.3)",
+                        borderColor: "rgba(239, 68, 68, 1)",
+                        borderWidth: 2,
+                        type: "line",
                       },
                     ],
                   }}
@@ -310,15 +535,32 @@ const Interns = () => {
                       legend: { display: true },
                       title: {
                         display: true,
-                        text: `Посещаемость за ${
-                          period === "month"
-                            ? "текущий месяц"
-                            : period === "prevMonth"
+                        text: `Посещаемость за ${period === "month"
+                          ? "текущий месяц"
+                          : period === "prevMonth"
                             ? "прошлый месяц"
                             : period === "week"
-                            ? "неделю"
-                            : "период"
-                        }`,
+                              ? "неделю"
+                              : "период"
+                          }`,
+                      },
+                      tooltip: {
+                        callbacks: {
+                          afterLabel: function (context) {
+                            const stat = quickFilteredStats[context.dataIndex];
+                            let extra = [];
+                            if (stat.canPromoteWithConcession) {
+                              extra.push("🎁 Кандидат на уступку");
+                            }
+                            if (stat.nearDeadline) {
+                              extra.push(`⚠️ ${stat.daysRemaining} дн. до дедлайна`);
+                            }
+                            if (extra.length > 0) {
+                              return extra.join("\n");
+                            }
+                            return "";
+                          },
+                        },
                       },
                     },
                   }}

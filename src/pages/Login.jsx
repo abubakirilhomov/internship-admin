@@ -10,7 +10,8 @@ const Login = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { login, user } = useAuth();
-
+  const apiUrl = import.meta.env.VITE_API_URL;
+  console.log(apiUrl);
   if (user) {
     return <Navigate to="/dashboard" replace />;
   }
@@ -21,11 +22,11 @@ const Login = () => {
     setLoading(true);
 
     const success = await login(email, password);
-    
+
     if (!success) {
       setError('Неверный email или пароль');
     }
-    
+
     setLoading(false);
   };
 
@@ -38,7 +39,7 @@ const Login = () => {
             Система управления обучением для администраторов и менторов
           </p>
         </div>
-        
+
         <div className="card shrink-0 w-full max-w-sm shadow-2xl bg-base-100">
           <form className="card-body" onSubmit={handleSubmit}>
             <div className="form-control">
@@ -53,7 +54,7 @@ const Login = () => {
                 onChange={(e) => setEmail(e.target.value)}
               />
             </div>
-            
+
             <div className="form-control">
               <label className="label">
                 <span className="label-text">Пароль</span>
