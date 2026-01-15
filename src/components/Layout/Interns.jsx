@@ -16,6 +16,8 @@ import {
   Title,
   Tooltip,
   Legend,
+  LineController,
+  BarController,
 } from "chart.js";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
@@ -28,7 +30,9 @@ ChartJS.register(
   LineElement,
   Title,
   Tooltip,
-  Legend
+  Legend,
+  LineController,
+  BarController
 );
 
 const Interns = () => {
