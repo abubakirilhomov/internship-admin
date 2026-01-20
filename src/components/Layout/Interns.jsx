@@ -120,7 +120,7 @@ const Interns = () => {
       </div>
     );
   }
-  console.log(stats[0]);
+  console.log(stats);
   const filteredStats =
     selectedBranch === "all"
       ? stats
