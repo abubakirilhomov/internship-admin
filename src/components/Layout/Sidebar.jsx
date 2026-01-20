@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Users, Building2, UserCheck, BarChart3, Home, LogOut, Scale } from 'lucide-react';
+import { Users, Building2, UserCheck, BarChart3, Home, LogOut, Scale, Clock } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
 const Sidebar = () => {
@@ -13,6 +13,7 @@ const Sidebar = () => {
     { name: 'Менторы', href: '/mentors', icon: UserCheck },
     { name: 'Филиалы', href: '/branches', icon: Building2 },
     { name: 'Рейтинг Интернов', href: '/interns/rating', icon: BarChart3 },
+    { name: 'Долги Менторов', href: '/mentor-debt', icon: Clock },
     { name: 'Правила и нарушения', href: '/rules', icon: Scale },
   ];
 
@@ -37,16 +38,15 @@ const Sidebar = () => {
             {navigation.map((item) => {
               const Icon = item.icon;
               const isActive = location.pathname === item.href;
-              
+
               return (
                 <li key={item.name}>
                   <Link
                     to={item.href}
-                    className={`flex items-center gap-3 rounded-lg px-3 py-2 transition-colors ${
-                      isActive 
-                        ? 'bg-primary text-primary-content' 
+                    className={`flex items-center gap-3 rounded-lg px-3 py-2 transition-colors ${isActive
+                        ? 'bg-primary text-primary-content'
                         : 'hover:bg-base-300'
-                    }`}
+                      }`}
                   >
                     <Icon className="h-5 w-5" />
                     {item.name}

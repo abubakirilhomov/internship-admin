@@ -1,4 +1,5 @@
 const API_BASE_URL = import.meta.env.VITE_API_URL;
+console.log(API_BASE_URL);
 const user = JSON.parse(localStorage.getItem("user"));
 const getAuthHeaders = () => {
   const token = localStorage.getItem("token");
@@ -25,11 +26,21 @@ export const api = {
       });
       return response.json();
     },
-    upgrade: async (id, newGrade) => {
+    upgrade: async (id, options) => {
+      // options может быть либо просто грейдом (строка) либо объектом с параметрами
+      const payload = typeof options === 'string'
+        ? { newGrade: options }
+        : {
+          newGrade: options.grade || options.newGrade,
+          withConcession: options.withConcession,
+          percentage: options.percentage,
+          note: options.note
+        };
+
       const response = await fetch(`${API_BASE_URL}/interns/${id}/upgrade`, {
         method: "PATCH",
         headers: getAuthHeaders(),
-        body: JSON.stringify({ newGrade }),
+        body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
@@ -139,6 +150,22 @@ export const api = {
         headers: getAuthHeaders(),
       });
       return response.json();
+    },
+    getAllDebt: async () => {
+      const response = await fetch(`${API_BASE_URL}/mentors/debt/all`, {
+        headers: getAuthHeaders(),
+      });
+      if (!response.ok) throw new Error("Failed to fetch mentor debt");
+      const json = await response.json();
+      return json.data; // Return data array directly
+    },
+    getDebtDetails: async (id) => {
+      const response = await fetch(`${API_BASE_URL}/mentors/${id}/debt-details`, {
+        headers: getAuthHeaders(),
+      });
+      if (!response.ok) throw new Error("Failed to fetch debt details");
+      const json = await response.json();
+      return json.data;
     },
   },
   rules: {

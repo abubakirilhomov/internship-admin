@@ -3,9 +3,9 @@ import React from "react";
 const InternsCardList = ({ interns, onEdit, onDelete }) => {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      {interns.map((intern) => (
+      {interns.map((intern, index) => (
         <div
-          key={intern._id}
+          key={index}
           className="card bg-base-100 shadow-md hover:shadow-lg transition"
         >
           <div className="card-body">
