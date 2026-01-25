@@ -15,6 +15,7 @@ const Sidebar = () => {
     { name: 'Рейтинг Интернов', href: '/interns/rating', icon: BarChart3 },
     { name: 'Долги Менторов', href: '/mentor-debt', icon: Clock },
     { name: 'Правила и нарушения', href: '/rules', icon: Scale },
+    { name: 'Журнал нарушений', href: '/violations', icon: Scale },
   ];
 
   return (
@@ -44,8 +45,8 @@ const Sidebar = () => {
                   <Link
                     to={item.href}
                     className={`flex items-center gap-3 rounded-lg px-3 py-2 transition-colors ${isActive
-                        ? 'bg-primary text-primary-content'
-                        : 'hover:bg-base-300'
+                      ? 'bg-primary text-primary-content'
+                      : 'hover:bg-base-300'
                       }`}
                   >
                     <Icon className="h-5 w-5" />

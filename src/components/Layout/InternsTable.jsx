@@ -148,6 +148,21 @@ const InternsTable = ({ interns, onEdit, onDelete, rules, refresh }) => {
                     <Edit className="h-4 w-4" />
                   </button>
                   <button
+                    onClick={() => onViolations(intern)}
+                    className="btn btn-sm btn-warning relative"
+                    title="Нарушения и отзывы"
+                  >
+                    <div className="flex">
+                      ⚠️
+                      {(intern.violations?.length > 0 || intern.feedbacks?.length > 0) && (
+                        <span className="absolute -top-1 -right-1 flex h-3 w-3">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+                        </span>
+                      )}
+                    </div>
+                  </button>
+                  <button
                     onClick={() => handleOpenUpgradeModal(intern._id)}
                     className="btn btn-sm btn-success"
                     title="Повысить грейд"

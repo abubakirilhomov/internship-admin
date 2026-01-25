@@ -138,7 +138,7 @@ const Interns = () => {
   // 🔹 Применяем быстрый фильтр
   const quickFilteredStats = filteredStats.filter((stat) => {
     if (quickFilter === "all") return true;
-    if (quickFilter === "nearDeadline") return stat.nearDeadline;
+    if (quickFilter === "nearDeadline") return stat.nearDeadline || stat.isOverdue;
     if (quickFilter === "concession") return stat.canPromoteWithConcession;
     if (quickFilter === "meetsNorm") return stat.meetsNorm;
     return true;
@@ -221,9 +221,9 @@ const Interns = () => {
               </div>
               <div className="stat-title">Близкие к дедлайну</div>
               <div className="stat-value text-yellow-600">
-                {stats.filter((s) => s.nearDeadline).length}
+                {stats.filter((s) => s.nearDeadline || s.isOverdue).length}
               </div>
-              <div className="stat-desc">≤7 дней до конца срока</div>
+              <div className="stat-desc">Включая просроченные</div>
             </div>
           </div>
 
@@ -363,7 +363,7 @@ const Interns = () => {
                   }`}
                 onClick={() => setQuickFilter("nearDeadline")}
               >
-                ⚠️ Близкие к дедлайну ({filteredStats.filter(s => s.nearDeadline).length})
+                ⚠️ Близкие к дедлайну ({filteredStats.filter(s => s.nearDeadline || s.isOverdue).length})
               </button>
               <button
                 className={`btn btn-sm ${quickFilter === "concession" ? "btn-accent" : "btn-outline btn-accent"

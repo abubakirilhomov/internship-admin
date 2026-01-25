@@ -17,6 +17,7 @@ import Branches from "./pages/Branches";
 import InternsRating from "./pages/InternsRating";
 import Rules from "./pages/Rules";
 import MentorDebt from "./pages/MentorDebt";
+import ViolationsPage from "./pages/ViolationsPage";
 
 const Layout = ({ children }) => {
   return (
@@ -104,6 +105,16 @@ function App() {
                 <ProtectedRoute>
                   <Layout>
                     <MentorDebt />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/violations"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <ViolationsPage />
                   </Layout>
                 </ProtectedRoute>
               }
