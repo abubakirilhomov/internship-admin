@@ -192,6 +192,15 @@ export const api = {
       return response.json();
     },
   },
+  violations: {
+    getAll: async (params) => {
+      const queryString = new URLSearchParams(params).toString();
+      const response = await fetch(`${API_BASE_URL}/violations?${queryString}`, {
+        headers: getAuthHeaders(),
+      });
+      return response.json();
+    },
+  },
   lessons: {
     getAttendanceStats: async (params = {}) => {
       if (params.period === "previousMonth") {
