@@ -12,6 +12,9 @@ const Mentors = () => {
   const [error, setError] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [fieldErrors, setFieldErrors] = useState({});
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [tempPassword, setTempPassword] = useState('');
+  const [resetMentorName, setResetMentorName] = useState('');
   const [formData, setFormData] = useState({
     name: '',
     lastName: '',
@@ -60,14 +63,14 @@ const Mentors = () => {
 
   const validateForm = () => {
     const errors = {};
-    
+
     if (!formData.name.trim()) errors.name = 'Имя обязательно';
     if (!formData.lastName.trim()) errors.lastName = 'Фамилия обязательна';
     if (!formData.password && !isEditing) errors.password = 'Пароль обязателен';
     if (formData.password && formData.password.length < 6) errors.password = 'Пароль должен содержать не менее 6 символов';
     if (!formData.branch) errors.branch = 'Выберите филиал';
     if (!['mentor', 'admin'].includes(formData.role)) errors.role = 'Неверная роль';
-    
+
     setFieldErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -87,7 +90,7 @@ const Mentors = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!validateForm()) return;
 
     setIsSubmitting(true);
@@ -128,6 +131,20 @@ const Mentors = () => {
       } catch (error) {
         setError('Ошибка при удалении ментора');
         console.error('Error deleting mentor:', error);
+      }
+    }
+  };
+
+  const handleResetPassword = async (mentor) => {
+    if (confirm(`Вы уверены, что хотите сбросить пароль для ${mentor.name} ${mentor.lastName || ''}?`)) {
+      try {
+        const result = await api.mentors.resetPassword(mentor._id);
+        setTempPassword(result.tempPassword);
+        setResetMentorName(`${mentor.name} ${mentor.lastName || ''}`);
+        setShowPasswordModal(true);
+      } catch (error) {
+        setError('Ошибка при сбросе пароля');
+        console.error('Error resetting password:', error);
       }
     }
   };
@@ -206,12 +223,21 @@ const Mentors = () => {
                         <button
                           className="btn btn-sm btn-ghost"
                           onClick={() => handleEdit(mentor)}
+                          title="Редактировать"
                         >
                           <Pencil className="h-4 w-4" />
                         </button>
                         <button
+                          className="btn btn-sm btn-ghost text-warning"
+                          onClick={() => handleResetPassword(mentor)}
+                          title="Сбросить пароль"
+                        >
+                          <Lock className="h-4 w-4" />
+                        </button>
+                        <button
                           className="btn btn-sm btn-ghost text-error"
                           onClick={() => handleDelete(mentor._id)}
+                          title="Удалить"
                         >
                           <Trash2 className="h-4 w-4" />
                         </button>
@@ -440,6 +466,74 @@ const Mentors = () => {
         </div>
         <form method="dialog" className="modal-backdrop">
           <button type="button" onClick={closeModal}>close</button>
+        </form>
+      </dialog>
+
+      {/* Password Reset Success Modal */}
+      <dialog className={`modal ${showPasswordModal ? 'modal-open' : ''}`}>
+        <div className="modal-box">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="p-2 rounded-lg bg-success/10">
+              <Lock className="h-6 w-6 text-success" />
+            </div>
+            <div>
+              <h3 className="text-xl font-bold text-base-content">Пароль сброшен</h3>
+              <p className="text-sm text-base-content/60 mt-1">
+                Новый временный пароль для {resetMentorName}
+              </p>
+            </div>
+          </div>
+
+          <div className="alert alert-warning mb-4">
+            <div className="flex flex-col gap-2 w-full">
+              <span className="font-semibold">⚠️ Важно: Сохраните этот пароль!</span>
+              <span className="text-sm">Этот пароль больше не будет показан. Передайте его ментору безопасным способом.</span>
+            </div>
+          </div>
+
+          <div className="form-control">
+            <label className="label">
+              <span className="label-text font-medium">Временный пароль:</span>
+            </label>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                className="input input-bordered flex-1 font-mono text-lg"
+                value={tempPassword}
+                readOnly
+              />
+              <button
+                className="btn btn-square"
+                onClick={() => {
+                  navigator.clipboard.writeText(tempPassword);
+                  // Could add a toast notification here
+                }}
+                title="Копировать"
+              >
+                📋
+              </button>
+            </div>
+          </div>
+
+          <div className="modal-action">
+            <button
+              className="btn btn-primary"
+              onClick={() => {
+                setShowPasswordModal(false);
+                setTempPassword('');
+                setResetMentorName('');
+              }}
+            >
+              Закрыть
+            </button>
+          </div>
+        </div>
+        <form method="dialog" className="modal-backdrop">
+          <button type="button" onClick={() => {
+            setShowPasswordModal(false);
+            setTempPassword('');
+            setResetMentorName('');
+          }}>close</button>
         </form>
       </dialog>
     </div>

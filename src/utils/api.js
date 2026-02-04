@@ -144,11 +144,34 @@ export const api = {
       });
       return response.json();
     },
+    update: async (id, data) => {
+      const response = await fetch(`${API_BASE_URL}/mentors/${id}`, {
+        method: "PUT",
+        headers: getAuthHeaders(),
+        body: JSON.stringify(data),
+      });
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || `Failed to update mentor`);
+      }
+      return response.json();
+    },
     delete: async (id) => {
       const response = await fetch(`${API_BASE_URL}/mentors/${id}`, {
         method: "DELETE",
         headers: getAuthHeaders(),
       });
+      return response.json();
+    },
+    resetPassword: async (id) => {
+      const response = await fetch(`${API_BASE_URL}/mentors/${id}/reset-password`, {
+        method: "POST",
+        headers: getAuthHeaders(),
+      });
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || `Failed to reset password`);
+      }
       return response.json();
     },
     getAllDebt: async () => {
