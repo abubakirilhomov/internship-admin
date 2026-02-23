@@ -36,6 +36,16 @@ const ViolationsModal = ({ intern, rules, onClose }) => {
                           {rule?.category || "N/A"}
                         </span>
                         <span className="font-semibold">{rule?.title || violation.ruleId}</span>
+                        {violation.issuedBy === "headIntern" && (
+                          <span className="badge badge-sm badge-warning gap-1">
+                            👑 Head Intern
+                          </span>
+                        )}
+                        {violation.issuedBy === "admin" && (
+                          <span className="badge badge-sm badge-error gap-1">
+                            Admin
+                          </span>
+                        )}
                       </div>
                       <p className="text-xs opacity-75">{new Date(violation.date).toLocaleDateString()}</p>
                       {violation.notes && <p className="mt-1 italic">"{violation.notes}"</p>}

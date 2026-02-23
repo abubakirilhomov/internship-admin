@@ -100,6 +100,30 @@ export const api = {
       });
       return response.json();
     },
+    addBonus: async (id, data) => {
+      const response = await fetch(`${API_BASE_URL}/interns/${id}/bonus-lessons`, {
+        method: "PATCH",
+        headers: getAuthHeaders(),
+        body: JSON.stringify(data),
+      });
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || "Ошибка при добавлении бонуса");
+      }
+      return response.json();
+    },
+    setHeadIntern: async (id, isHeadIntern) => {
+      const response = await fetch(`${API_BASE_URL}/interns/${id}/head-intern`, {
+        method: "PATCH",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ isHeadIntern }),
+      });
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || "Ошибка при обновлении статуса Head Intern");
+      }
+      return response.json();
+    },
   },
 
   // Branches

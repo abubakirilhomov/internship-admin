@@ -1,10 +1,10 @@
 import React, { useState, useMemo } from "react";
-import { Trash2, Edit, ArrowUpCircle, History } from "lucide-react";
+import { Trash2, Edit, ArrowUpCircle, History, Gift, Crown } from "lucide-react";
 import { toast } from "react-toastify";
 import { api } from "../../utils/api";
 import PromotionHistoryModal from "./PromotionHistoryModal";
 
-const InternsTable = ({ interns, onEdit, onDelete, rules, refresh }) => {
+const InternsTable = ({ interns, onEdit, onDelete, onViolations, rules, refresh }) => {
   const [selectedIntern, setSelectedIntern] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(null);
   const [showUpgradeModal, setShowUpgradeModal] = useState(null);
@@ -12,6 +12,12 @@ const InternsTable = ({ interns, onEdit, onDelete, rules, refresh }) => {
   const [upgradeWithConcession, setUpgradeWithConcession] = useState(false);
   const [internStats, setInternStats] = useState(null);
   const [showHistoryModal, setShowHistoryModal] = useState(null);
+  const [showBonusModal, setShowBonusModal] = useState(null);
+  const [bonusCount, setBonusCount] = useState(5);
+  const [bonusReason, setBonusReason] = useState("branch_help");
+  const [bonusNotes, setBonusNotes] = useState("");
+  const [bonusLoading, setBonusLoading] = useState(false);
+  const [showHeadInternModal, setShowHeadInternModal] = useState(null);
 
   // 🔹 Получаем список всех уникальных филиалов
   const branches = useMemo(() => {
@@ -79,6 +85,48 @@ const InternsTable = ({ interns, onEdit, onDelete, rules, refresh }) => {
     }
   };
 
+  const handleAddBonus = async () => {
+    if (!showBonusModal) return;
+    setBonusLoading(true);
+    try {
+      const reasonLabels = {
+        branch_help: "Помощь в делах филиала",
+        event_day: "Работа на Event Day",
+        other: bonusNotes || "Другое",
+      };
+      await api.interns.addBonus(showBonusModal, {
+        count: bonusCount,
+        reason: reasonLabels[bonusReason] || bonusReason,
+        notes: bonusNotes,
+      });
+      toast.success(`🎁 Бонус +${bonusCount} уроков успешно добавлен!`);
+      setShowBonusModal(null);
+      setBonusNotes("");
+      setBonusCount(5);
+      setBonusReason("branch_help");
+      refresh();
+    } catch (err) {
+      toast.error(err.message || "Ошибка при добавлении бонуса");
+    } finally {
+      setBonusLoading(false);
+    }
+  };
+
+  const handleSetHeadIntern = async (intern, makeHead) => {
+    try {
+      await api.interns.setHeadIntern(intern._id, makeHead);
+      toast.success(
+        makeHead
+          ? `👑 ${intern.name} ${intern.lastName} назначен Head Intern`
+          : `${intern.name} ${intern.lastName} снят с должности Head Intern`
+      );
+      setShowHeadInternModal(null);
+      refresh();
+    } catch (err) {
+      toast.error(err.message || "Ошибка при обновлении статуса");
+    }
+  };
+
   const gradeOptions = [
     "junior",
     "strongJunior",
@@ -131,13 +179,34 @@ const InternsTable = ({ interns, onEdit, onDelete, rules, refresh }) => {
                 className="hover:bg-base-200 transition"
                 onClick={() => setSelectedIntern(intern)}
               >
-                <td>{intern.name}</td>
+                <td>
+                  <div className="flex items-center gap-1">
+                    {intern.isHeadIntern && (
+                      <span title="Head Intern" className="text-yellow-500">
+                        <Crown className="h-4 w-4 inline" />
+                      </span>
+                    )}
+                    {intern.name}
+                  </div>
+                </td>
                 <td>{intern.lastName}</td>
                 <td>{intern.branch?.name || "—"}</td>
-                <td>{intern?.lessonsVisited?.length || 0}</td>
+                <td>
+                  <div className="flex items-center gap-1">
+                    <span>{intern?.lessonsVisited?.length || 0}</span>
+                    {intern.bonusLessons?.length > 0 && (
+                      <span
+                        className="badge badge-sm badge-warning"
+                        title={`Бонус: +${intern.bonusLessons.reduce((s, b) => s + b.count, 0)} уроков`}
+                      >
+                        +{intern.bonusLessons.reduce((s, b) => s + b.count, 0)}
+                      </span>
+                    )}
+                  </div>
+                </td>
                 <td className="capitalize">{intern.grade}</td>
                 <td
-                  className="flex justify-center gap-2"
+                  className="flex justify-center gap-2 flex-wrap"
                   onClick={(e) => e.stopPropagation()}
                 >
                   <button
@@ -161,6 +230,20 @@ const InternsTable = ({ interns, onEdit, onDelete, rules, refresh }) => {
                         </span>
                       )}
                     </div>
+                  </button>
+                  <button
+                    onClick={() => setShowBonusModal(intern._id)}
+                    className="btn btn-sm btn-accent"
+                    title="Добавить бонусные уроки"
+                  >
+                    <Gift className="h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={() => setShowHeadInternModal(intern)}
+                    className={`btn btn-sm ${intern.isHeadIntern ? "btn-warning" : "btn-ghost border border-yellow-400"}`}
+                    title={intern.isHeadIntern ? "Снять с должности Head Intern" : "Назначить Head Intern"}
+                  >
+                    <Crown className="h-4 w-4" />
                   </button>
                   <button
                     onClick={() => handleOpenUpgradeModal(intern._id)}
@@ -323,6 +406,143 @@ const InternsTable = ({ interns, onEdit, onDelete, rules, refresh }) => {
           intern={showHistoryModal}
           onClose={() => setShowHistoryModal(null)}
         />
+      )}
+
+      {/* --- Bonus Lessons Modal --- */}
+      {showBonusModal && (
+        <div className="modal modal-open">
+          <div className="modal-box">
+            <h3 className="font-bold text-lg mb-2">🎁 Добавить бонусные уроки</h3>
+            <p className="text-sm text-gray-500 mb-4">
+              Бонус за помощь в делах филиала или работу на Event Day
+            </p>
+
+            <div className="form-control mb-4">
+              <label className="label">
+                <span className="label-text font-semibold">Количество уроков</span>
+              </label>
+              <div className="flex gap-3">
+                {[5, 10, 15].map((n) => (
+                  <button
+                    key={n}
+                    className={`btn flex-1 ${bonusCount === n ? "btn-accent" : "btn-outline btn-accent"}`}
+                    onClick={() => setBonusCount(n)}
+                  >
+                    +{n}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="form-control mb-4">
+              <label className="label">
+                <span className="label-text font-semibold">Причина</span>
+              </label>
+              <select
+                className="select select-bordered w-full"
+                value={bonusReason}
+                onChange={(e) => setBonusReason(e.target.value)}
+              >
+                <option value="branch_help">Помощь в делах филиала</option>
+                <option value="event_day">Работа на Event Day</option>
+                <option value="other">Другое</option>
+              </select>
+            </div>
+
+            <div className="form-control mb-4">
+              <label className="label">
+                <span className="label-text">Дополнительные заметки</span>
+              </label>
+              <textarea
+                className="textarea textarea-bordered w-full"
+                placeholder="Опционально..."
+                value={bonusNotes}
+                onChange={(e) => setBonusNotes(e.target.value)}
+                rows={2}
+              />
+            </div>
+
+            <div className="alert alert-info py-2 mb-4">
+              <span className="text-sm">
+                Бонус <strong>+{bonusCount} уроков</strong> будет добавлен к текущему прогрессу интерна
+              </span>
+            </div>
+
+            <div className="modal-action">
+              <button
+                className="btn btn-ghost"
+                onClick={() => {
+                  setShowBonusModal(null);
+                  setBonusNotes("");
+                  setBonusCount(5);
+                  setBonusReason("branch_help");
+                }}
+              >
+                Отмена
+              </button>
+              <button
+                className="btn btn-accent"
+                onClick={handleAddBonus}
+                disabled={bonusLoading}
+              >
+                {bonusLoading ? <span className="loading loading-spinner loading-sm" /> : `Добавить +${bonusCount}`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* --- Head Intern Modal --- */}
+      {showHeadInternModal && (
+        <div className="modal modal-open">
+          <div className="modal-box">
+            {showHeadInternModal.isHeadIntern ? (
+              <>
+                <h3 className="font-bold text-lg mb-2">Снять с должности Head Intern</h3>
+                <p className="mb-4">
+                  Снять <strong>{showHeadInternModal.name} {showHeadInternModal.lastName}</strong> с должности Head Intern?
+                </p>
+                <div className="modal-action">
+                  <button className="btn btn-ghost" onClick={() => setShowHeadInternModal(null)}>
+                    Отмена
+                  </button>
+                  <button
+                    className="btn btn-error"
+                    onClick={() => handleSetHeadIntern(showHeadInternModal, false)}
+                  >
+                    Снять
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <h3 className="font-bold text-lg mb-2">👑 Назначить Head Intern</h3>
+                <p className="mb-2">
+                  Назначить <strong>{showHeadInternModal.name} {showHeadInternModal.lastName}</strong> Head Intern?
+                </p>
+                <div className="alert alert-warning py-2 mb-4">
+                  <span className="text-sm">
+                    Предыдущий Head Intern в филиале <strong>{showHeadInternModal.branch?.name}</strong> будет снят с должности автоматически
+                  </span>
+                </div>
+                <p className="text-sm text-gray-500 mb-4">
+                  Head Intern может выдавать предупреждения другим интернам своего филиала без необходимости привязки к уроку
+                </p>
+                <div className="modal-action">
+                  <button className="btn btn-ghost" onClick={() => setShowHeadInternModal(null)}>
+                    Отмена
+                  </button>
+                  <button
+                    className="btn btn-warning"
+                    onClick={() => handleSetHeadIntern(showHeadInternModal, true)}
+                  >
+                    <Crown className="h-4 w-4 mr-1" /> Назначить
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
       )}
     </div>
   );
