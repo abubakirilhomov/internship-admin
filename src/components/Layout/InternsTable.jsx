@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from "react";
-import { Trash2, Edit, ArrowUpCircle, History, Gift, Crown } from "lucide-react";
+import { Trash2, Edit, ArrowUpCircle, History, Gift, Crown, Unlock, Lock } from "lucide-react";
 import { toast } from "react-toastify";
 import { api } from "../../utils/api";
 import PromotionHistoryModal from "./PromotionHistoryModal";
@@ -148,6 +148,19 @@ const InternsTable = ({ interns, onEdit, onDelete, onViolations, rules, refresh 
     }
   };
 
+  const handleToggleActivation = async (intern, enable) => {
+    try {
+      const note = enable
+        ? prompt("Причина ручной активации (необязательно):", "") || ""
+        : "";
+      await api.interns.setActivation(intern._id, enable, note);
+      toast.success(enable ? "Аккаунт активирован" : "Ручная активация отключена");
+      refresh();
+    } catch (err) {
+      toast.error(err.message || "Ошибка при изменении статуса");
+    }
+  };
+
   const gradeOptions = [
     "junior",
     "strongJunior",
@@ -265,11 +278,32 @@ const InternsTable = ({ interns, onEdit, onDelete, onViolations, rules, refresh 
                 </td>
                 <td className="capitalize">{intern.grade}</td>
                 <td>
-                  {intern.isPlanBlocked ? (
-                    <span className="badge badge-error">Заблокирован</span>
-                  ) : (
-                    <span className="badge badge-success">Активен</span>
-                  )}
+                  <div className="flex flex-col gap-2">
+                    {intern.isPlanBlocked ? (
+                      <span className="badge badge-error">Заблокирован</span>
+                    ) : (
+                      <span className="badge badge-success">Активен</span>
+                    )}
+                    {intern.manualActivation?.isEnabled ? (
+                      <button
+                        className="btn btn-xs btn-outline btn-warning gap-1"
+                        onClick={() => handleToggleActivation(intern, false)}
+                        title="Отключить ручную активацию"
+                      >
+                        <Lock className="h-3 w-3" />
+                        Отключить активацию
+                      </button>
+                    ) : intern.isPlanBlocked ? (
+                      <button
+                        className="btn btn-xs btn-success gap-1"
+                        onClick={() => handleToggleActivation(intern, true)}
+                        title="Активировать аккаунт вручную"
+                      >
+                        <Unlock className="h-3 w-3" />
+                        Активировать
+                      </button>
+                    ) : null}
+                  </div>
                 </td>
                 <td
                   className="flex justify-center gap-2 flex-wrap"

@@ -134,6 +134,18 @@ export const api = {
       }
       return response.json();
     },
+    setActivation: async (id, isEnabled, note = "") => {
+      const response = await fetch(`${API_BASE_URL}/interns/${id}/activation`, {
+        method: "PATCH",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ isEnabled, note }),
+      });
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || "Ошибка при смене статуса активации");
+      }
+      return response.json();
+    },
   },
 
   // Branches
