@@ -1,11 +1,60 @@
-import React, { useState, useMemo } from "react";
-import { Trash2, Edit, ArrowUpCircle, History, Gift, Crown, Unlock, Lock } from "lucide-react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
+import {
+  Trash2, Edit, ArrowUpCircle, History, Gift, Crown,
+  Unlock, Lock, MoreVertical, AlertTriangle, X, Search,
+} from "lucide-react";
 import { toast } from "react-toastify";
 import { api } from "../../utils/api";
 import PromotionHistoryModal from "./PromotionHistoryModal";
 
-const InternsTable = ({ interns, onEdit, onDelete, onViolations, rules, refresh }) => {
-  const [selectedIntern, setSelectedIntern] = useState(null);
+// ─── Shared Modal Shell ───────────────────────────────────────────────────────
+const Modal = ({ children, onClose, maxWidth = "max-w-lg" }) => (
+  <div
+    className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+    onClick={onClose}
+  >
+    <div
+      className={`bg-white rounded-2xl w-full ${maxWidth} shadow-xl`}
+      onClick={(e) => e.stopPropagation()}
+    >
+      {children}
+    </div>
+  </div>
+);
+
+// ─── Lookup Tables ────────────────────────────────────────────────────────────
+const GRADE_LABELS = {
+  junior: "Junior",
+  strongJunior: "Strong Junior",
+  middle: "Middle",
+  strongMiddle: "Strong Middle",
+  senior: "Senior",
+};
+
+const SPHERE_LABELS = {
+  "backend-nodejs": "Backend (Node.js)",
+  "backend-python": "Backend (Python)",
+  "frontend-react": "Frontend (React)",
+  "frontend-vue": "Frontend (Vue)",
+  "mern-stack": "MERN Stack",
+  "full-stack": "Full Stack",
+};
+
+const GRADE_OPTIONS = ["junior", "strongJunior", "middle", "strongMiddle", "senior"];
+
+// ─── Main Component ───────────────────────────────────────────────────────────
+const InternsTable = ({ interns, onEdit, onDelete, onViolations, refresh }) => {
+  // Filters
+  const [searchTerm, setSearchTerm] = useState("");
+  const [sphereFilter, setSphereFilter] = useState("all");
+  const [planFilter, setPlanFilter] = useState("all");
+  const [selectedBranch, setSelectedBranch] = useState("all");
+
+  // Row dropdown menu
+  const [openMenu, setOpenMenu] = useState(null);
+  const menuRef = useRef(null);
+
+  // Modals
   const [showDeleteModal, setShowDeleteModal] = useState(null);
   const [showUpgradeModal, setShowUpgradeModal] = useState(null);
   const [selectedGrade, setSelectedGrade] = useState("strongJunior");
@@ -18,91 +67,85 @@ const InternsTable = ({ interns, onEdit, onDelete, onViolations, rules, refresh 
   const [bonusNotes, setBonusNotes] = useState("");
   const [bonusLoading, setBonusLoading] = useState(false);
   const [showHeadInternModal, setShowHeadInternModal] = useState(null);
+  const [showActivationModal, setShowActivationModal] = useState(null);
+  const [activationNote, setActivationNote] = useState("");
 
-  // 🔹 Получаем список всех уникальных филиалов
-  const branches = useMemo(() => {
-    const list = interns
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handler = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
+        setOpenMenu(null);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  // Unique branches from interns list
+  const branches = useMemo(() =>
+    interns
       .map((i) => i.branch)
-      .filter((b) => b && b.name)
-      .reduce((acc, branch) => {
-        if (!acc.find((x) => x._id === branch._id)) acc.push(branch);
+      .filter((b) => b?.name)
+      .reduce((acc, b) => {
+        if (!acc.find((x) => x._id === b._id)) acc.push(b);
         return acc;
-      }, []);
-    return list;
-  }, [interns]);
+      }, []),
+    [interns]
+  );
 
-  // 🔹 Для фильтрации по филиалу
-  const [selectedBranch, setSelectedBranch] = useState("all");
-  const [searchTerm, setSearchTerm] = useState("");
-  const [sphereFilter, setSphereFilter] = useState("all");
-  const [planFilter, setPlanFilter] = useState("all");
-
-  // 🔹 Фильтруем интернов
   const filteredInterns = useMemo(() => {
-    const normalizedQuery = searchTerm.trim().toLowerCase();
-
+    const q = searchTerm.trim().toLowerCase();
     return interns.filter((intern) => {
-      const byBranch =
-        selectedBranch === "all" || intern.branch?._id === selectedBranch;
+      const byBranch = selectedBranch === "all" || intern.branch?._id === selectedBranch;
       const bySphere = sphereFilter === "all" || intern.sphere === sphereFilter;
       const byPlan =
         planFilter === "all" ||
         (planFilter === "blocked" && intern.isPlanBlocked) ||
         (planFilter === "active" && !intern.isPlanBlocked);
-
       const bySearch =
-        !normalizedQuery ||
-        `${intern.name} ${intern.lastName}`.toLowerCase().includes(normalizedQuery) ||
-        (intern.username || "").toLowerCase().includes(normalizedQuery) ||
-        (intern.phoneNumber || "").toLowerCase().includes(normalizedQuery) ||
-        (intern.telegram || "").toLowerCase().includes(normalizedQuery);
-
+        !q ||
+        `${intern.name} ${intern.lastName}`.toLowerCase().includes(q) ||
+        (intern.username || "").toLowerCase().includes(q) ||
+        (intern.phoneNumber || "").toLowerCase().includes(q) ||
+        (intern.telegram || "").toLowerCase().includes(q);
       return byBranch && bySphere && byPlan && bySearch;
     });
   }, [interns, selectedBranch, searchTerm, sphereFilter, planFilter]);
 
-  const handleDeleteConfirm = (id) => {
-    onDelete(id);
-    setShowDeleteModal(null);
+  const hasFilters =
+    searchTerm || sphereFilter !== "all" || planFilter !== "all" || selectedBranch !== "all";
+
+  // ── Handlers ────────────────────────────────────────────────────────────────
+  const handleOpenUpgradeModal = async (internId) => {
+    setShowUpgradeModal(internId);
+    setUpgradeWithConcession(false);
+    try {
+      const res = await api.lessons.getAttendanceStats({ period: "month" });
+      const arr = res.stats || res;
+      setInternStats(arr.find((s) => s.internId === internId) || null);
+    } catch {
+      setInternStats(null);
+    }
   };
 
   const handleUpgrade = async () => {
     try {
-      const result = await api.interns.upgrade(showUpgradeModal, {
+      await api.interns.upgrade(showUpgradeModal, {
         grade: selectedGrade,
         withConcession: upgradeWithConcession,
         percentage: internStats?.percentage || 0,
       });
-
-      if (upgradeWithConcession) {
-        toast.success(`🎁 Грейд повышен до "${selectedGrade}" с уступкой`);
-      } else {
-        toast.success(`🎉 Грейд повышен до "${selectedGrade}"`);
-      }
-
+      toast.success(
+        upgradeWithConcession
+          ? `🎁 Грейд повышен до "${GRADE_LABELS[selectedGrade]}" с уступкой`
+          : `🎉 Грейд повышен до "${GRADE_LABELS[selectedGrade]}"`
+      );
       setShowUpgradeModal(null);
       setUpgradeWithConcession(false);
       setInternStats(null);
       refresh();
     } catch (err) {
       toast.error(err.message || "Ошибка при повышении грейда");
-    }
-  };
-
-  const handleOpenUpgradeModal = async (internId) => {
-    setShowUpgradeModal(internId);
-    setUpgradeWithConcession(false);
-
-    // Получаем статистику интерна из родительского компонента Interns.jsx
-    // Для этого нужно передать stats как пропс или получить через API
-    try {
-      const statsResponse = await api.lessons.getAttendanceStats({ period: 'month' });
-      const stats = statsResponse.stats || statsResponse;
-      const stat = stats.find(s => s.internId === internId);
-      setInternStats(stat || null);
-    } catch (err) {
-      console.error('Ошибка получения статистики:', err);
-      setInternStats(null);
     }
   };
 
@@ -120,7 +163,7 @@ const InternsTable = ({ interns, onEdit, onDelete, onViolations, rules, refresh 
         reason: reasonLabels[bonusReason] || bonusReason,
         notes: bonusNotes,
       });
-      toast.success(`🎁 Бонус +${bonusCount} уроков успешно добавлен!`);
+      toast.success(`🎁 Бонус +${bonusCount} уроков добавлен!`);
       setShowBonusModal(null);
       setBonusNotes("");
       setBonusCount(5);
@@ -150,357 +193,432 @@ const InternsTable = ({ interns, onEdit, onDelete, onViolations, rules, refresh 
 
   const handleToggleActivation = async (intern, enable) => {
     try {
-      const note = enable
-        ? prompt("Причина ручной активации (необязательно):", "") || ""
-        : "";
-      await api.interns.setActivation(intern._id, enable, note);
+      await api.interns.setActivation(intern._id, enable, enable ? activationNote : "");
       toast.success(enable ? "Аккаунт активирован" : "Ручная активация отключена");
+      setShowActivationModal(null);
+      setActivationNote("");
       refresh();
     } catch (err) {
       toast.error(err.message || "Ошибка при изменении статуса");
     }
   };
 
-  const gradeOptions = [
-    "junior",
-    "strongJunior",
-    "middle",
-    "strongMiddle",
-    "senior",
-  ];
-
+  // ── Render ───────────────────────────────────────────────────────────────────
   return (
-    <div className="overflow-x-auto">
-      {/* 🔹 Фильтр по филиалу */}
-      <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
-        <h2 className="text-xl font-bold">Стажёры</h2>
-        <input
-          className="input input-bordered w-72"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          placeholder="Поиск: ФИО, username, телефон, telegram"
-        />
-        <select
-          className="select select-bordered w-56"
-          value={sphereFilter}
-          onChange={(e) => setSphereFilter(e.target.value)}
-        >
-          <option value="all">Все сферы</option>
-          <option value="backend-nodejs">Backend (Node.js)</option>
-          <option value="backend-python">Backend (Python)</option>
-          <option value="frontend-react">Frontend (React)</option>
-          <option value="frontend-vue">Frontend (Vue)</option>
-          <option value="mern-stack">MERN Stack</option>
-          <option value="full-stack">Full Stack</option>
-        </select>
-        <select
-          className="select select-bordered w-56"
-          value={planFilter}
-          onChange={(e) => setPlanFilter(e.target.value)}
-        >
-          <option value="all">Все статусы плана</option>
-          <option value="blocked">Только заблокированные</option>
-          <option value="active">Только активные</option>
-        </select>
-        <select
-          className="select select-bordered w-64"
-          value={selectedBranch}
-          onChange={(e) => setSelectedBranch(e.target.value)}
-        >
-          <option value="all">Все филиалы</option>
-          {branches.map((b) => (
-            <option key={b._id} value={b._id}>
-              {b.name}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <table className="table table-zebra w-full">
-        <thead>
-          <tr>
-            <th>Имя</th>
-            <th>Фамилия</th>
-            <th>Филиал</th>
-            <th>Контакты</th>
-            <th>Сфера</th>
-            <th>Уроки</th>
-            <th>Грейд</th>
-            <th>Статус</th>
-            <th className="text-center">Действия</th>
-          </tr>
-        </thead>
-        <tbody>
-          {filteredInterns.length === 0 ? (
-            <tr>
-              <td colSpan="9" className="text-center py-6 text-gray-500">
-                Нет стажёров для выбранного филиала
-              </td>
-            </tr>
-          ) : (
-            filteredInterns.map((intern) => (
-              <tr
-                key={intern._id}
-                className="hover:bg-base-200 transition"
-                onClick={() => setSelectedIntern(intern)}
+    <div className="space-y-3">
+      {/* Filter Bar */}
+      <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+        <div className="flex flex-col lg:flex-row gap-3">
+          <div className="relative flex-1 min-w-0">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+            <input
+              className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-400"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Поиск по имени, username, телефону, Telegram..."
+            />
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {[
+              {
+                value: sphereFilter, onChange: setSphereFilter,
+                options: [
+                  ["all", "Все сферы"],
+                  ["backend-nodejs", "Backend Node.js"],
+                  ["backend-python", "Backend Python"],
+                  ["frontend-react", "Frontend React"],
+                  ["frontend-vue", "Frontend Vue"],
+                  ["mern-stack", "MERN Stack"],
+                  ["full-stack", "Full Stack"],
+                ],
+              },
+              {
+                value: planFilter, onChange: setPlanFilter,
+                options: [
+                  ["all", "Все статусы"],
+                  ["blocked", "Заблокированные"],
+                  ["active", "Активные"],
+                ],
+              },
+              {
+                value: selectedBranch, onChange: setSelectedBranch,
+                options: [
+                  ["all", "Все филиалы"],
+                  ...branches.map((b) => [b._id, b.name]),
+                ],
+              },
+            ].map(({ value, onChange, options }, idx) => (
+              <select
+                key={idx}
+                value={value}
+                onChange={(e) => onChange(e.target.value)}
+                className="px-3 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-400"
               >
-                <td>
-                  <div className="flex items-center gap-1">
-                    {intern.isHeadIntern && (
-                      <span title="Head Intern" className="text-yellow-500">
-                        <Crown className="h-4 w-4 inline" />
-                      </span>
-                    )}
-                    {intern.name}
-                  </div>
-                </td>
-                <td>{intern.lastName}</td>
-                <td>{intern.branch?.name || "—"}</td>
-                <td>
-                  <div className="text-xs">
-                    <div>{intern.phoneNumber || "—"}</div>
-                    <div>{intern.telegram || "—"}</div>
-                  </div>
-                </td>
-                <td>{intern.sphere || "—"}</td>
-                <td>
-                  <div className="flex items-center gap-1">
-                    <span>{intern?.lessonsVisited?.length || 0}</span>
-                    {intern.bonusLessons?.length > 0 && (
-                      <span
-                        className="badge badge-sm badge-warning"
-                        title={`Бонус: +${intern.bonusLessons.reduce((s, b) => s + b.count, 0)} уроков`}
-                      >
-                        +{intern.bonusLessons.reduce((s, b) => s + b.count, 0)}
-                      </span>
-                    )}
-                  </div>
-                </td>
-                <td className="capitalize">{intern.grade}</td>
-                <td>
-                  <div className="flex flex-col gap-2">
-                    {intern.isPlanBlocked ? (
-                      <span className="badge badge-error">Заблокирован</span>
-                    ) : (
-                      <span className="badge badge-success">Активен</span>
-                    )}
-                    {intern.manualActivation?.isEnabled ? (
-                      <button
-                        className="btn btn-xs btn-outline btn-warning gap-1"
-                        onClick={() => handleToggleActivation(intern, false)}
-                        title="Отключить ручную активацию"
-                      >
-                        <Lock className="h-3 w-3" />
-                        Отключить активацию
-                      </button>
-                    ) : intern.isPlanBlocked ? (
-                      <button
-                        className="btn btn-xs btn-success gap-1"
-                        onClick={() => handleToggleActivation(intern, true)}
-                        title="Активировать аккаунт вручную"
-                      >
-                        <Unlock className="h-3 w-3" />
-                        Активировать
-                      </button>
-                    ) : null}
-                  </div>
-                </td>
-                <td
-                  className="flex justify-center gap-2 flex-wrap"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <button
-                    onClick={() => onEdit(intern)}
-                    className="btn btn-sm btn-primary"
-                    title="Редактировать"
-                  >
-                    <Edit className="h-4 w-4" />
-                  </button>
-                  <button
-                    onClick={() => onViolations(intern)}
-                    className="btn btn-sm btn-warning relative"
-                    title="Нарушения и отзывы"
-                  >
-                    <div className="flex">
-                      ⚠️
-                      {(intern.violations?.length > 0 || intern.feedbacks?.length > 0) && (
-                        <span className="absolute -top-1 -right-1 flex h-3 w-3">
-                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                          <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
-                        </span>
-                      )}
-                    </div>
-                  </button>
-                  <button
-                    onClick={() => setShowBonusModal(intern._id)}
-                    className="btn btn-sm btn-accent"
-                    title="Добавить бонусные уроки"
-                  >
-                    <Gift className="h-4 w-4" />
-                  </button>
-                  <button
-                    onClick={() => setShowHeadInternModal(intern)}
-                    className={`btn btn-sm ${intern.isHeadIntern ? "btn-warning" : "btn-ghost border border-yellow-400"}`}
-                    title={intern.isHeadIntern ? "Снять с должности Head Intern" : "Назначить Head Intern"}
-                  >
-                    <Crown className="h-4 w-4" />
-                  </button>
-                  <button
-                    onClick={() => handleOpenUpgradeModal(intern._id)}
-                    className="btn btn-sm btn-success"
-                    title="Повысить грейд"
-                  >
-                    <ArrowUpCircle className="h-4 w-4" />
-                  </button>
-                  <button
-                    onClick={() => setShowHistoryModal(intern)}
-                    className="btn btn-sm btn-info"
-                    title="История повышений"
-                  >
-                    <History className="h-4 w-4" />
-                  </button>
-                  <button
-                    onClick={() => setShowDeleteModal(intern._id)}
-                    className="btn btn-sm btn-error"
-                    title="Удалить"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </td>
-              </tr>
-            ))
-          )}
-        </tbody>
-      </table>
-
-      {/* --- Upgrade Modal --- */}
-      {showUpgradeModal && (
-        <div className="modal modal-open">
-          <div className="modal-box">
-            <h3 className="font-bold text-lg mb-4">Повысить грейд</h3>
-
-            {/* Показать статистику интерна */}
-            {internStats && (
-              <div className="mb-4">
-                <div className="stats stats-vertical lg:stats-horizontal shadow w-full">
-                  <div className="stat">
-                    <div className="stat-title">Процент выполнения</div>
-                    <div className={`stat-value text-2xl ${internStats.percentage >= 100 ? 'text-success' :
-                      internStats.percentage >= 70 ? 'text-warning' :
-                        'text-error'
-                      }`}>
-                      {internStats.percentage}%
-                    </div>
-                    <div className="stat-desc">{internStats.confirmedCount} / {internStats.norm} уроков</div>
-                  </div>
-                  <div className="stat">
-                    <div className="stat-title">Срок грейда</div>
-                    <div className="stat-value text-2xl">{internStats.daysWorking}</div>
-                    <div className="stat-desc">из {internStats.trialPeriodDays} дней</div>
-                  </div>
-                </div>
-
-                {/* Предупреждение если процент низкий */}
-                {internStats.percentage < 100 && (
-                  <div className="alert alert-warning mt-4">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                    </svg>
-                    <span>⚠️ Интерн выполнил только {internStats.percentage}% плана</span>
-                  </div>
-                )}
-
-                {/* Подсказка об уступке */}
-                {internStats.canPromoteWithConcession && (
-                  <div className="alert alert-info mt-4">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" className="stroke-current shrink-0 w-6 h-6">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                    </svg>
-                    <span>🎁 Интерн подходит под критерии повышения с уступкой</span>
-                  </div>
-                )}
-              </div>
-            )}
-
-            <p className="mb-2">Выберите новый уровень:</p>
-            <select
-              className="select select-bordered w-full mb-4"
-              value={selectedGrade}
-              onChange={(e) => setSelectedGrade(e.target.value)}
-            >
-              {gradeOptions.map((g) => (
-                <option key={g} value={g}>
-                  {g}
-                </option>
-              ))}
-            </select>
-
-            {/* Чекбокс для уступки */}
-            {internStats && internStats.percentage >= 50 && internStats.percentage < 100 && (
-              <div className="form-control mb-4">
-                <label className="label cursor-pointer">
-                  <span className="label-text">
-                    🎁 Повысить с уступкой (текущий % выполнения: {internStats.percentage}%)
-                  </span>
-                  <input
-                    type="checkbox"
-                    className="checkbox checkbox-warning"
-                    checked={upgradeWithConcession}
-                    onChange={(e) => setUpgradeWithConcession(e.target.checked)}
-                  />
-                </label>
-                {upgradeWithConcession && (
-                  <p className="text-xs text-warning mt-2">
-                    ℹ️ Это повышение будет отмечено как "с уступкой" в истории
-                  </p>
-                )}
-              </div>
-            )}
-
-            <div className="modal-action">
-              <button
-                className="btn btn-ghost"
-                onClick={() => {
-                  setShowUpgradeModal(null);
-                  setUpgradeWithConcession(false);
-                  setInternStats(null);
-                }}
-              >
-                Отмена
-              </button>
-              <button className="btn btn-success" onClick={handleUpgrade}>
-                Повысить
-              </button>
-            </div>
+                {options.map(([v, label]) => (
+                  <option key={v} value={v}>{label}</option>
+                ))}
+              </select>
+            ))}
           </div>
         </div>
+        {hasFilters && (
+          <div className="mt-2.5 flex items-center gap-3">
+            <span className="text-xs text-slate-500">
+              Показано {filteredInterns.length} из {interns.length}
+            </span>
+            <button
+              onClick={() => {
+                setSearchTerm("");
+                setSphereFilter("all");
+                setPlanFilter("all");
+                setSelectedBranch("all");
+              }}
+              className="text-xs text-blue-600 hover:underline"
+            >
+              Сбросить фильтры
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Table */}
+      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="bg-slate-50 border-b border-slate-200">
+                {["Интерн", "Филиал", "Контакты", "Сфера · Грейд", "Уроки", "Статус", ""].map(
+                  (h, i) => (
+                    <th
+                      key={i}
+                      className={`px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide ${i === 6 ? "text-right" : "text-left"}`}
+                    >
+                      {h}
+                    </th>
+                  )
+                )}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {filteredInterns.length === 0 ? (
+                <tr>
+                  <td colSpan="7" className="px-4 py-14 text-center">
+                    <div className="flex flex-col items-center gap-2 text-slate-400">
+                      <Search className="w-8 h-8 opacity-30" />
+                      <p className="text-sm">Стажёры не найдены</p>
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                filteredInterns.map((intern) => {
+                  const bonusTotal =
+                    intern.bonusLessons?.reduce((s, b) => s + b.count, 0) || 0;
+                  const hasActivity =
+                    (intern.violations?.length || 0) + (intern.feedbacks?.length || 0) > 0;
+
+                  return (
+                    <tr key={intern._id} className="hover:bg-slate-50/70 transition-colors">
+                      {/* Интерн */}
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-slate-200 to-slate-300 flex items-center justify-center font-semibold text-slate-600 text-xs shrink-0 overflow-hidden">
+                            {intern.profilePhoto ? (
+                              <img src={intern.profilePhoto} alt="" className="w-full h-full object-cover" />
+                            ) : (
+                              <span>{intern.name?.[0]}{intern.lastName?.[0]}</span>
+                            )}
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-1">
+                              {intern.isHeadIntern && (
+                                <Crown className="w-3.5 h-3.5 text-yellow-500 shrink-0" />
+                              )}
+                              <span className="font-semibold text-slate-900 text-sm whitespace-nowrap">
+                                {intern.name} {intern.lastName}
+                              </span>
+                            </div>
+                            <p className="text-xs text-slate-400">@{intern.username}</p>
+                          </div>
+                        </div>
+                      </td>
+
+                      {/* Филиал */}
+                      <td className="px-4 py-3 text-sm text-slate-700 whitespace-nowrap">
+                        {intern.branch?.name || "—"}
+                      </td>
+
+                      {/* Контакты */}
+                      <td className="px-4 py-3">
+                        <div className="space-y-0.5 text-xs">
+                          <p className="text-slate-700">{intern.phoneNumber || "—"}</p>
+                          <p className="text-slate-400">{intern.telegram || "—"}</p>
+                        </div>
+                      </td>
+
+                      {/* Сфера · Грейд */}
+                      <td className="px-4 py-3">
+                        <div className="space-y-1">
+                          <p className="text-xs text-slate-500 whitespace-nowrap">
+                            {SPHERE_LABELS[intern.sphere] || intern.sphere || "—"}
+                          </p>
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200 whitespace-nowrap">
+                            {GRADE_LABELS[intern.grade] || intern.grade || "—"}
+                          </span>
+                        </div>
+                      </td>
+
+                      {/* Уроки */}
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-sm font-semibold text-slate-900">
+                            {intern.lessonsVisited?.length || 0}
+                          </span>
+                          {bonusTotal > 0 && (
+                            <span className="text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-1.5 py-0.5">
+                              +{bonusTotal}
+                            </span>
+                          )}
+                        </div>
+                      </td>
+
+                      {/* Статус */}
+                      <td className="px-4 py-3">
+                        <div className="flex flex-col gap-1.5">
+                          {intern.isPlanBlocked ? (
+                            <span className="inline-flex items-center text-xs font-medium text-red-600 bg-red-50 border border-red-200 rounded-full px-2 py-0.5 w-fit whitespace-nowrap">
+                              Заблокирован
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center text-xs font-medium text-green-600 bg-green-50 border border-green-200 rounded-full px-2 py-0.5 w-fit">
+                              Активен
+                            </span>
+                          )}
+                          {intern.manualActivation?.isEnabled ? (
+                            <button
+                              onClick={() => setShowActivationModal({ intern, enable: false })}
+                              className="inline-flex items-center gap-1 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-2 py-0.5 w-fit hover:bg-amber-100 transition-colors whitespace-nowrap"
+                            >
+                              <Lock className="w-3 h-3" /> Деактивировать
+                            </button>
+                          ) : intern.isPlanBlocked ? (
+                            <button
+                              onClick={() => setShowActivationModal({ intern, enable: true })}
+                              className="inline-flex items-center gap-1 text-xs font-medium text-green-700 bg-green-50 border border-green-200 rounded-full px-2 py-0.5 w-fit hover:bg-green-100 transition-colors whitespace-nowrap"
+                            >
+                              <Unlock className="w-3 h-3" /> Активировать
+                            </button>
+                          ) : null}
+                        </div>
+                      </td>
+
+                      {/* Действия */}
+                      <td className="px-4 py-3">
+                        <div className="flex items-center justify-end gap-1">
+                          <button
+                            onClick={() => onEdit(intern)}
+                            title="Редактировать"
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => onViolations(intern)}
+                            title="Нарушения и отзывы"
+                            className="relative p-1.5 rounded-lg text-slate-400 hover:text-amber-600 hover:bg-amber-50 transition-colors"
+                          >
+                            <AlertTriangle className="w-4 h-4" />
+                            {hasActivity && (
+                              <span className="absolute top-1 right-1 w-1.5 h-1.5 bg-red-500 rounded-full" />
+                            )}
+                          </button>
+
+                          {/* ••• dropdown */}
+                          <div
+                            className="relative"
+                            ref={openMenu === intern._id ? menuRef : null}
+                          >
+                            <button
+                              onClick={() =>
+                                setOpenMenu(openMenu === intern._id ? null : intern._id)
+                              }
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+                            >
+                              <MoreVertical className="w-4 h-4" />
+                            </button>
+                            {openMenu === intern._id && (
+                              <div className="absolute right-0 top-full mt-1 w-52 bg-white border border-slate-200 rounded-xl shadow-lg z-20 py-1 overflow-hidden">
+                                {[
+                                  {
+                                    icon: <Gift className="w-4 h-4 text-purple-500" />,
+                                    label: "Добавить бонус",
+                                    onClick: () => { setShowBonusModal(intern._id); setOpenMenu(null); },
+                                  },
+                                  {
+                                    icon: <Crown className="w-4 h-4 text-yellow-500" />,
+                                    label: intern.isHeadIntern ? "Снять Head Intern" : "Назначить Head Intern",
+                                    onClick: () => { setShowHeadInternModal(intern); setOpenMenu(null); },
+                                  },
+                                  {
+                                    icon: <ArrowUpCircle className="w-4 h-4 text-green-500" />,
+                                    label: "Повысить грейд",
+                                    onClick: () => { handleOpenUpgradeModal(intern._id); setOpenMenu(null); },
+                                  },
+                                  {
+                                    icon: <History className="w-4 h-4 text-blue-500" />,
+                                    label: "История повышений",
+                                    onClick: () => { setShowHistoryModal(intern); setOpenMenu(null); },
+                                  },
+                                ].map(({ icon, label, onClick }) => (
+                                  <button
+                                    key={label}
+                                    onClick={onClick}
+                                    className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+                                  >
+                                    {icon} {label}
+                                  </button>
+                                ))}
+                                <div className="my-1 border-t border-slate-100" />
+                                <button
+                                  onClick={() => { setShowDeleteModal(intern._id); setOpenMenu(null); }}
+                                  className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                                >
+                                  <Trash2 className="w-4 h-4" /> Удалить
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* ── Upgrade Modal ────────────────────────────────────────────────────── */}
+      {showUpgradeModal && (
+        <Modal
+          onClose={() => { setShowUpgradeModal(null); setInternStats(null); }}
+        >
+          <div className="px-5 pt-5 pb-4 border-b border-slate-100">
+            <h3 className="font-bold text-lg text-slate-900">Повысить грейд</h3>
+          </div>
+          <div className="p-5 space-y-4">
+            {internStats && (
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-slate-50 rounded-xl p-3 border border-slate-200">
+                  <p className="text-xs text-slate-500 mb-1">Выполнение плана</p>
+                  <p
+                    className={`text-2xl font-bold ${
+                      internStats.percentage >= 100
+                        ? "text-green-600"
+                        : internStats.percentage >= 70
+                        ? "text-amber-500"
+                        : "text-red-500"
+                    }`}
+                  >
+                    {internStats.percentage}%
+                  </p>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    {internStats.confirmedCount} / {internStats.norm} уроков
+                  </p>
+                </div>
+                <div className="bg-slate-50 rounded-xl p-3 border border-slate-200">
+                  <p className="text-xs text-slate-500 mb-1">Срок грейда</p>
+                  <p className="text-2xl font-bold text-slate-900">{internStats.daysWorking}</p>
+                  <p className="text-xs text-slate-400 mt-0.5">из {internStats.trialPeriodDays} дней</p>
+                </div>
+              </div>
+            )}
+            {internStats?.percentage < 100 && (
+              <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-xl p-3 text-sm text-amber-700">
+                <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+                Интерн выполнил только {internStats.percentage}% плана
+              </div>
+            )}
+            {internStats?.canPromoteWithConcession && (
+              <div className="flex items-start gap-2 bg-blue-50 border border-blue-200 rounded-xl p-3 text-sm text-blue-700">
+                <Gift className="w-4 h-4 shrink-0 mt-0.5" />
+                Подходит под критерии повышения с уступкой
+              </div>
+            )}
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">Новый грейд</label>
+              <select
+                className="w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
+                value={selectedGrade}
+                onChange={(e) => setSelectedGrade(e.target.value)}
+              >
+                {GRADE_OPTIONS.map((g) => (
+                  <option key={g} value={g}>{GRADE_LABELS[g]}</option>
+                ))}
+              </select>
+            </div>
+            {internStats && internStats.percentage >= 50 && internStats.percentage < 100 && (
+              <label className="flex items-center gap-3 cursor-pointer bg-amber-50 border border-amber-200 rounded-xl p-3">
+                <input
+                  type="checkbox"
+                  checked={upgradeWithConcession}
+                  onChange={(e) => setUpgradeWithConcession(e.target.checked)}
+                  className="w-4 h-4 rounded accent-amber-500"
+                />
+                <div>
+                  <p className="text-sm font-medium text-amber-800">Повысить с уступкой</p>
+                  <p className="text-xs text-amber-600">
+                    Текущее выполнение: {internStats.percentage}%
+                  </p>
+                </div>
+              </label>
+            )}
+          </div>
+          <div className="px-5 py-4 border-t border-slate-100 flex justify-end gap-2">
+            <button
+              onClick={() => { setShowUpgradeModal(null); setUpgradeWithConcession(false); setInternStats(null); }}
+              className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
+            >
+              Отмена
+            </button>
+            <button
+              onClick={handleUpgrade}
+              className="px-4 py-2 text-sm font-medium bg-green-500 hover:bg-green-600 text-white rounded-xl transition-colors"
+            >
+              Повысить
+            </button>
+          </div>
+        </Modal>
       )}
 
-      {/* --- Delete Modal --- */}
+      {/* ── Delete Modal ─────────────────────────────────────────────────────── */}
       {showDeleteModal && (
-        <div className="modal modal-open">
-          <div className="modal-box">
-            <h3 className="font-bold text-lg mb-4">Удалить стажёра?</h3>
-            <p className="mb-4">Это действие нельзя отменить.</p>
-            <div className="modal-action">
+        <Modal onClose={() => setShowDeleteModal(null)} maxWidth="max-w-sm">
+          <div className="p-6 text-center">
+            <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Trash2 className="w-6 h-6 text-red-500" />
+            </div>
+            <h3 className="font-bold text-lg text-slate-900 mb-1">Удалить стажёра?</h3>
+            <p className="text-sm text-slate-500 mb-6">Это действие нельзя отменить</p>
+            <div className="flex gap-2">
               <button
-                className="btn btn-ghost"
                 onClick={() => setShowDeleteModal(null)}
+                className="flex-1 px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
               >
                 Отмена
               </button>
               <button
-                className="btn btn-error"
-                onClick={() => handleDeleteConfirm(showDeleteModal)}
+                onClick={() => { onDelete(showDeleteModal); setShowDeleteModal(null); }}
+                className="flex-1 px-4 py-2.5 text-sm font-medium bg-red-500 hover:bg-red-600 text-white rounded-xl transition-colors"
               >
                 Удалить
               </button>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
 
-      {/* --- History Modal --- */}
+      {/* ── History Modal ────────────────────────────────────────────────────── */}
       {showHistoryModal && (
         <PromotionHistoryModal
           intern={showHistoryModal}
@@ -508,38 +626,41 @@ const InternsTable = ({ interns, onEdit, onDelete, onViolations, rules, refresh 
         />
       )}
 
-      {/* --- Bonus Lessons Modal --- */}
+      {/* ── Bonus Modal ──────────────────────────────────────────────────────── */}
       {showBonusModal && (
-        <div className="modal modal-open">
-          <div className="modal-box">
-            <h3 className="font-bold text-lg mb-2">🎁 Добавить бонусные уроки</h3>
-            <p className="text-sm text-gray-500 mb-4">
-              Бонус за помощь в делах филиала или работу на Event Day
-            </p>
-
-            <div className="form-control mb-4">
-              <label className="label">
-                <span className="label-text font-semibold">Количество уроков</span>
-              </label>
-              <div className="flex gap-3">
+        <Modal onClose={() => setShowBonusModal(null)}>
+          <div className="px-5 pt-5 pb-4 border-b border-slate-100 flex items-center justify-between">
+            <h3 className="font-bold text-lg text-slate-900">Добавить бонусные уроки</h3>
+            <button
+              onClick={() => setShowBonusModal(null)}
+              className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors"
+            >
+              <X className="w-4 h-4 text-slate-500" />
+            </button>
+          </div>
+          <div className="p-5 space-y-4">
+            <div>
+              <p className="text-sm font-medium text-slate-700 mb-2">Количество уроков</p>
+              <div className="flex gap-2">
                 {[5, 10, 15].map((n) => (
                   <button
                     key={n}
-                    className={`btn flex-1 ${bonusCount === n ? "btn-accent" : "btn-outline btn-accent"}`}
                     onClick={() => setBonusCount(n)}
+                    className={`flex-1 py-2.5 text-sm font-semibold rounded-xl border transition-colors ${
+                      bonusCount === n
+                        ? "bg-purple-500 text-white border-purple-500"
+                        : "text-slate-600 border-slate-200 hover:bg-slate-50"
+                    }`}
                   >
                     +{n}
                   </button>
                 ))}
               </div>
             </div>
-
-            <div className="form-control mb-4">
-              <label className="label">
-                <span className="label-text font-semibold">Причина</span>
-              </label>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">Причина</label>
               <select
-                className="select select-bordered w-full"
+                className="w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300"
                 value={bonusReason}
                 onChange={(e) => setBonusReason(e.target.value)}
               >
@@ -548,67 +669,69 @@ const InternsTable = ({ interns, onEdit, onDelete, onViolations, rules, refresh 
                 <option value="other">Другое</option>
               </select>
             </div>
-
-            <div className="form-control mb-4">
-              <label className="label">
-                <span className="label-text">Дополнительные заметки</span>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                Заметки <span className="font-normal text-slate-400">(необязательно)</span>
               </label>
               <textarea
-                className="textarea textarea-bordered w-full"
-                placeholder="Опционально..."
+                className="w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-purple-300"
+                rows={2}
+                placeholder="Дополнительная информация..."
                 value={bonusNotes}
                 onChange={(e) => setBonusNotes(e.target.value)}
-                rows={2}
               />
             </div>
-
-            <div className="alert alert-info py-2 mb-4">
-              <span className="text-sm">
-                Бонус <strong>+{bonusCount} уроков</strong> будет добавлен к текущему прогрессу интерна
-              </span>
-            </div>
-
-            <div className="modal-action">
-              <button
-                className="btn btn-ghost"
-                onClick={() => {
-                  setShowBonusModal(null);
-                  setBonusNotes("");
-                  setBonusCount(5);
-                  setBonusReason("branch_help");
-                }}
-              >
-                Отмена
-              </button>
-              <button
-                className="btn btn-accent"
-                onClick={handleAddBonus}
-                disabled={bonusLoading}
-              >
-                {bonusLoading ? <span className="loading loading-spinner loading-sm" /> : `Добавить +${bonusCount}`}
-              </button>
+            <div className="bg-purple-50 border border-purple-200 rounded-xl p-3 text-sm text-purple-700">
+              Будет добавлено <strong>+{bonusCount} уроков</strong> к прогрессу интерна
             </div>
           </div>
-        </div>
+          <div className="px-5 py-4 border-t border-slate-100 flex justify-end gap-2">
+            <button
+              onClick={() => setShowBonusModal(null)}
+              className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
+            >
+              Отмена
+            </button>
+            <button
+              onClick={handleAddBonus}
+              disabled={bonusLoading}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-purple-500 hover:bg-purple-600 text-white rounded-xl transition-colors disabled:opacity-50"
+            >
+              {bonusLoading ? (
+                <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              ) : (
+                <Gift className="w-4 h-4" />
+              )}
+              Добавить +{bonusCount}
+            </button>
+          </div>
+        </Modal>
       )}
 
-      {/* --- Head Intern Modal --- */}
+      {/* ── Head Intern Modal ────────────────────────────────────────────────── */}
       {showHeadInternModal && (
-        <div className="modal modal-open">
-          <div className="modal-box">
+        <Modal onClose={() => setShowHeadInternModal(null)} maxWidth="max-w-sm">
+          <div className="p-6 text-center">
+            <div className="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Crown className="w-6 h-6 text-yellow-500" />
+            </div>
             {showHeadInternModal.isHeadIntern ? (
               <>
-                <h3 className="font-bold text-lg mb-2">Снять с должности Head Intern</h3>
-                <p className="mb-4">
-                  Снять <strong>{showHeadInternModal.name} {showHeadInternModal.lastName}</strong> с должности Head Intern?
+                <h3 className="font-bold text-lg text-slate-900 mb-1">Снять с должности</h3>
+                <p className="text-sm text-slate-500 mb-6">
+                  <strong>{showHeadInternModal.name} {showHeadInternModal.lastName}</strong>{" "}
+                  будет снят с должности Head Intern
                 </p>
-                <div className="modal-action">
-                  <button className="btn btn-ghost" onClick={() => setShowHeadInternModal(null)}>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setShowHeadInternModal(null)}
+                    className="flex-1 px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
+                  >
                     Отмена
                   </button>
                   <button
-                    className="btn btn-error"
                     onClick={() => handleSetHeadIntern(showHeadInternModal, false)}
+                    className="flex-1 px-4 py-2.5 text-sm font-medium bg-red-500 hover:bg-red-600 text-white rounded-xl transition-colors"
                   >
                     Снять
                   </button>
@@ -616,33 +739,96 @@ const InternsTable = ({ interns, onEdit, onDelete, onViolations, rules, refresh 
               </>
             ) : (
               <>
-                <h3 className="font-bold text-lg mb-2">👑 Назначить Head Intern</h3>
-                <p className="mb-2">
-                  Назначить <strong>{showHeadInternModal.name} {showHeadInternModal.lastName}</strong> Head Intern?
+                <h3 className="font-bold text-lg text-slate-900 mb-1">Назначить Head Intern</h3>
+                <p className="text-sm text-slate-700 font-semibold mb-3">
+                  {showHeadInternModal.name} {showHeadInternModal.lastName}
                 </p>
-                <div className="alert alert-warning py-2 mb-4">
-                  <span className="text-sm">
-                    Предыдущий Head Intern в филиале <strong>{showHeadInternModal.branch?.name}</strong> будет снят с должности автоматически
-                  </span>
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-700 text-left mb-3">
+                  Предыдущий Head Intern в{" "}
+                  <strong>{showHeadInternModal.branch?.name}</strong> будет снят автоматически
                 </div>
-                <p className="text-sm text-gray-500 mb-4">
-                  Head Intern может выдавать предупреждения другим интернам своего филиала без необходимости привязки к уроку
+                <p className="text-xs text-slate-400 mb-6">
+                  Head Intern может выдавать предупреждения другим интернам без привязки к уроку
                 </p>
-                <div className="modal-action">
-                  <button className="btn btn-ghost" onClick={() => setShowHeadInternModal(null)}>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setShowHeadInternModal(null)}
+                    className="flex-1 px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
+                  >
                     Отмена
                   </button>
                   <button
-                    className="btn btn-warning"
                     onClick={() => handleSetHeadIntern(showHeadInternModal, true)}
+                    className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2.5 text-sm font-medium bg-yellow-400 hover:bg-yellow-500 text-white rounded-xl transition-colors"
                   >
-                    <Crown className="h-4 w-4 mr-1" /> Назначить
+                    <Crown className="w-4 h-4" /> Назначить
                   </button>
                 </div>
               </>
             )}
           </div>
-        </div>
+        </Modal>
+      )}
+
+      {/* ── Activation Modal ─────────────────────────────────────────────────── */}
+      {showActivationModal && (
+        <Modal
+          onClose={() => { setShowActivationModal(null); setActivationNote(""); }}
+          maxWidth="max-w-sm"
+        >
+          <div className="p-6">
+            <div
+              className={`w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4 ${
+                showActivationModal.enable ? "bg-green-100" : "bg-amber-100"
+              }`}
+            >
+              {showActivationModal.enable ? (
+                <Unlock className="w-6 h-6 text-green-500" />
+              ) : (
+                <Lock className="w-6 h-6 text-amber-500" />
+              )}
+            </div>
+            <h3 className="font-bold text-lg text-slate-900 text-center mb-1">
+              {showActivationModal.enable ? "Активировать аккаунт" : "Деактивировать"}
+            </h3>
+            <p className="text-sm text-slate-500 text-center mb-4">
+              {showActivationModal.intern.name} {showActivationModal.intern.lastName}
+            </p>
+            {showActivationModal.enable && (
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                  Причина <span className="font-normal text-slate-400">(необязательно)</span>
+                </label>
+                <input
+                  className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-green-300"
+                  placeholder="Укажите причину..."
+                  value={activationNote}
+                  onChange={(e) => setActivationNote(e.target.value)}
+                />
+              </div>
+            )}
+            <div className="flex gap-2">
+              <button
+                onClick={() => { setShowActivationModal(null); setActivationNote(""); }}
+                className="flex-1 px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
+              >
+                Отмена
+              </button>
+              <button
+                onClick={() =>
+                  handleToggleActivation(showActivationModal.intern, showActivationModal.enable)
+                }
+                className={`flex-1 px-4 py-2.5 text-sm font-medium text-white rounded-xl transition-colors ${
+                  showActivationModal.enable
+                    ? "bg-green-500 hover:bg-green-600"
+                    : "bg-amber-500 hover:bg-amber-600"
+                }`}
+              >
+                {showActivationModal.enable ? "Активировать" : "Деактивировать"}
+              </button>
+            </div>
+          </div>
+        </Modal>
       )}
     </div>
   );
