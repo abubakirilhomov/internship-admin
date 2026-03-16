@@ -10,6 +10,8 @@ import {
   Phone,
   Send,
   Image,
+  Plus,
+  Trash2,
 } from "lucide-react";
 import { api } from "../../utils/api";
 
@@ -23,8 +25,7 @@ const InternFormModal = ({ onClose, branches, initialData, refresh }) => {
     telegram: "",
     sphere: "backend-nodejs",
     profilePhoto: "",
-    branch: "",
-    mentor: "",
+    branches: [{ branch: "", mentor: "" }],
     lessonsVisitedFake: 0,
     rating: 0,
     grade: "junior",
@@ -42,6 +43,13 @@ const InternFormModal = ({ onClose, branches, initialData, refresh }) => {
 
   useEffect(() => {
     if (initialData) {
+      const branchList = initialData.branches?.length
+        ? initialData.branches.map((b) => ({
+            branch: b.branch?._id || b.branch || "",
+            mentor: b.mentor?._id || b.mentor || "",
+          }))
+        : [{ branch: initialData.branch?._id || "", mentor: initialData.mentor?._id || "" }];
+
       setForm({
         name: initialData.name || "",
         lastName: initialData.lastName || "",
@@ -51,9 +59,8 @@ const InternFormModal = ({ onClose, branches, initialData, refresh }) => {
         telegram: initialData.telegram || "",
         sphere: initialData.sphere || "backend-nodejs",
         profilePhoto: initialData.profilePhoto || "",
-        branch: initialData.branch?._id || "",
-        mentor: initialData.mentor?._id || "",
-        lessonsVisitedFake: initialData.lessonsVisited?.length || 0, // <-- здесь
+        branches: branchList,
+        lessonsVisitedFake: (initialData.lessonsVisited || []).reduce((s, lv) => s + (lv.count || 0), 0),
         rating: initialData.score || 0,
         grade: initialData.grade || "junior",
         dateJoined: initialData.dateJoined
@@ -94,18 +101,34 @@ const InternFormModal = ({ onClose, branches, initialData, refresh }) => {
     }
   };
 
+  const handleBranchRowChange = (idx, field, value) => {
+    setForm((prev) => {
+      const updated = [...prev.branches];
+      updated[idx] = { ...updated[idx], [field]: value };
+      return { ...prev, branches: updated };
+    });
+  };
+
+  const addBranchRow = () =>
+    setForm((prev) => ({ ...prev, branches: [...prev.branches, { branch: "", mentor: "" }] }));
+
+  const removeBranchRow = (idx) =>
+    setForm((prev) => ({ ...prev, branches: prev.branches.filter((_, i) => i !== idx) }));
+
   const validateForm = () => {
     if (
       !form.name ||
       !form.lastName ||
       !form.username ||
       (!initialData && !form.password) ||
-      !form.branch ||
-      !form.mentor ||
       !form.grade ||
       !form.dateJoined
     ) {
       setError("Пожалуйста, заполните все обязательные поля");
+      return false;
+    }
+    if (form.branches.length === 0 || form.branches.some((b) => !b.branch || !b.mentor)) {
+      setError("Укажите хотя бы один филиал и ментора");
       return false;
     }
     if (form.rating < 0 || form.rating > 5) {
@@ -139,11 +162,10 @@ const InternFormModal = ({ onClose, branches, initialData, refresh }) => {
         telegram: form.telegram,
         sphere: form.sphere,
         profilePhoto: form.profilePhoto,
-        branch: form.branch,
-        mentor: form.mentor,
+        branches: form.branches,
         grade: form.grade,
         dateJoined: form.dateJoined,
-        lessonsVisitedFake: Number(form.lessonsVisitedFake), // <-- передаём на бэк
+        lessonsVisitedFake: Number(form.lessonsVisitedFake),
       };
 
       if (initialData) {
@@ -340,51 +362,60 @@ const InternFormModal = ({ onClose, branches, initialData, refresh }) => {
             )}
           </div>
 
-          {/* Branch */}
+          {/* Branches — dynamic list */}
           <div className="form-control">
             <label className="label">
               <span className="label-text flex items-center gap-2">
-                <Building className="h-4 w-4" /> Филиал
+                <Building className="h-4 w-4" /> Филиалы и менторы
               </span>
             </label>
-            <select
-              name="branch"
-              value={form.branch}
-              onChange={handleChange}
-              className="select select-bordered w-full"
-              required
-            >
-              <option value="">Выбери филиал</option>
-              {branches.map((b) => (
-                <option key={b._id} value={b._id}>
-                  {b.name}
-                </option>
+            <div className="flex flex-col gap-2">
+              {form.branches.map((row, idx) => (
+                <div key={idx} className="flex gap-2 items-center">
+                  <select
+                    value={row.branch}
+                    onChange={(e) => handleBranchRowChange(idx, "branch", e.target.value)}
+                    className="select select-bordered flex-1"
+                    required
+                  >
+                    <option value="">Филиал</option>
+                    {branches.map((b) => (
+                      <option key={b._id} value={b._id}>{b.name}</option>
+                    ))}
+                  </select>
+                  <select
+                    value={row.mentor}
+                    onChange={(e) => handleBranchRowChange(idx, "mentor", e.target.value)}
+                    className="select select-bordered flex-1"
+                    required
+                    disabled={loading}
+                  >
+                    <option value="">Ментор</option>
+                    {mentors.map((m) => (
+                      <option key={m._id} value={m._id}>
+                        {m.name} {m.lastName || ""}
+                      </option>
+                    ))}
+                  </select>
+                  {form.branches.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => removeBranchRow(idx)}
+                      className="btn btn-ghost btn-sm text-error"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
               ))}
-            </select>
-          </div>
-
-          {/* Mentor */}
-          <div className="form-control">
-            <label className="label">
-              <span className="label-text flex items-center gap-2">
-                <UserCheck className="h-4 w-4" /> Ментор
-              </span>
-            </label>
-            <select
-              name="mentor"
-              value={form.mentor}
-              onChange={handleChange}
-              className="select select-bordered w-full"
-              required
-              disabled={loading}
-            >
-              <option value="">Выбери ментора</option>
-              {mentors.map((m) => (
-                <option key={m._id} value={m._id}>
-                  {m.name} {m?.lastName || ""}
-                </option>
-              ))}
-            </select>
+              <button
+                type="button"
+                onClick={addBranchRow}
+                className="btn btn-ghost btn-sm self-start gap-1 text-primary"
+              >
+                <Plus className="h-4 w-4" /> Добавить филиал
+              </button>
+            </div>
           </div>
 
           {/* Grade */}

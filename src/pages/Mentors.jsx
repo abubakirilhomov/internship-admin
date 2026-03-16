@@ -21,7 +21,7 @@ const Mentors = () => {
     lastName: '',
     password: '',
     profilePhoto: '',
-    branch: '',
+    branches: [],
     role: 'mentor',
   });
 
@@ -70,7 +70,7 @@ const Mentors = () => {
     if (!formData.lastName.trim()) errors.lastName = 'Фамилия обязательна';
     if (!formData.password && !isEditing) errors.password = 'Пароль обязателен';
     if (formData.password && formData.password.length < 6) errors.password = 'Пароль должен содержать не менее 6 символов';
-    if (!formData.branch) errors.branch = 'Выберите филиал';
+    if (!formData.branches.length) errors.branches = 'Выберите хотя бы один филиал';
     if (!['mentor', 'admin', 'branchManager'].includes(formData.role)) errors.role = 'Неверная роль';
 
     setFieldErrors(errors);
@@ -78,7 +78,7 @@ const Mentors = () => {
   };
 
   const resetForm = () => {
-    setFormData({ name: '', lastName: '', password: '', profilePhoto: '', branch: '', role: 'mentor' });
+    setFormData({ name: '', lastName: '', password: '', profilePhoto: '', branches: [], role: 'mentor' });
     setError(null);
     setFieldErrors({});
     setIsEditing(false);
@@ -113,12 +113,15 @@ const Mentors = () => {
   };
 
   const handleEdit = (mentor) => {
+    const branchIds = (mentor.branches || []).map((b) =>
+      typeof b === 'object' ? b._id : b
+    );
     setFormData({
       name: mentor.name,
       lastName: mentor.lastName || '',
       password: '',
       profilePhoto: mentor.profilePhoto || '',
-      branch: mentor.branch?._id || mentor.branch || '',
+      branches: branchIds,
       role: mentor.role || 'mentor',
     });
     setEditId(mentor._id);
@@ -223,11 +226,14 @@ const Mentors = () => {
                     <td>{mentor.name}</td>
                     <td>{mentor.lastName || '-'}</td>
                     <td>
-                      {mentor.branch && (
-                        <span className="badge badge-outline">
-                          {typeof mentor.branch === 'object' ? mentor.branch.name : branches.find(b => b._id === mentor.branch)?.name || 'N/A'}
-                        </span>
-                      )}
+                      <div className="flex flex-wrap gap-1">
+                        {(mentor.branches || []).map((b, i) => (
+                          <span key={i} className="badge badge-outline">
+                            {typeof b === 'object' ? b.name : branches.find((br) => br._id === b)?.name || 'N/A'}
+                          </span>
+                        ))}
+                        {!mentor.branches?.length && <span className="text-base-content/40">—</span>}
+                      </div>
                     </td>
                     <td>
                       <span className={`badge ${mentor.role === 'admin' ? 'badge-primary' : 'badge-secondary'}`}>
@@ -433,27 +439,31 @@ const Mentors = () => {
                 <label className="label">
                   <span className="label-text font-medium flex items-center gap-2">
                     <Building className="h-4 w-4" />
-                    Филиал
+                    Филиалы
                   </span>
                 </label>
                 <select
-                  className={`select select-bordered ${fieldErrors.branch ? 'select-error' : 'focus:select-primary'}`}
-                  value={formData.branch}
+                  multiple
+                  className={`select select-bordered h-28 ${fieldErrors.branches ? 'select-error' : 'focus:select-primary'}`}
+                  value={formData.branches}
                   onChange={(e) => {
-                    setFormData({ ...formData, branch: e.target.value });
-                    if (fieldErrors.branch) setFieldErrors({ ...fieldErrors, branch: null });
+                    const selected = Array.from(e.target.selectedOptions).map((o) => o.value);
+                    setFormData({ ...formData, branches: selected });
+                    if (fieldErrors.branches) setFieldErrors({ ...fieldErrors, branches: null });
                   }}
                 >
-                  <option value="">Выберите филиал</option>
                   {branches.map((branch) => (
                     <option key={branch._id} value={branch._id}>
                       {branch.name}
                     </option>
                   ))}
                 </select>
-                {fieldErrors.branch && (
+                <label className="label">
+                  <span className="label-text-alt text-base-content/50">Ctrl+click для выбора нескольких</span>
+                </label>
+                {fieldErrors.branches && (
                   <label className="label">
-                    <span className="label-text-alt text-error">{fieldErrors.branch}</span>
+                    <span className="label-text-alt text-error">{fieldErrors.branches}</span>
                   </label>
                 )}
               </div>

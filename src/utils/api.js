@@ -1,5 +1,4 @@
 const API_BASE_URL = import.meta.env.VITE_API_URL;
-console.log(API_BASE_URL);
 const user = JSON.parse(localStorage.getItem("user"));
 const getAuthHeaders = () => {
   const token = localStorage.getItem("token");
@@ -154,7 +153,6 @@ export const api = {
       const response = await fetch(`${API_BASE_URL}/branches`, {
         headers: getAuthHeaders(),
       });
-      console.log(response.json)
       return response.json();
     },
     create: async (data) => {
@@ -239,7 +237,7 @@ export const api = {
   },
   rules: {
     getAll: async () => {
-      const response = await fetch(`${API_BASE_URL}/rules`, {
+      const response = await fetch(`${API_BASE_URL}/rules?limit=1000`, {
         headers: getAuthHeaders(),
       });
       return response.json();

@@ -10,8 +10,6 @@ const Login = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { login, user } = useAuth();
-  const apiUrl = import.meta.env.VITE_API_URL;
-  console.log(apiUrl);
   if (user) {
     return <Navigate to="/dashboard" replace />;
   }

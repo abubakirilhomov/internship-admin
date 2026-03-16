@@ -82,21 +82,19 @@ const InternsTable = ({ interns, onEdit, onDelete, onViolations, refresh }) => {
   }, []);
 
   // Unique branches from interns list
-  const branches = useMemo(() =>
-    interns
-      .map((i) => i.branch)
-      .filter((b) => b?.name)
-      .reduce((acc, b) => {
-        if (!acc.find((x) => x._id === b._id)) acc.push(b);
-        return acc;
-      }, []),
-    [interns]
-  );
+  const branches = useMemo(() => {
+    const all = interns.flatMap((i) => i.branches?.map((b) => b.branch).filter(Boolean) || []);
+    return all.reduce((acc, b) => {
+      if (b?._id && !acc.find((x) => x._id === b._id)) acc.push(b);
+      return acc;
+    }, []);
+  }, [interns]);
 
   const filteredInterns = useMemo(() => {
     const q = searchTerm.trim().toLowerCase();
     return interns.filter((intern) => {
-      const byBranch = selectedBranch === "all" || intern.branch?._id === selectedBranch;
+      const byBranch = selectedBranch === "all" ||
+        intern.branches?.some((b) => b.branch?._id === selectedBranch || b.branch === selectedBranch);
       const bySphere = sphereFilter === "all" || intern.sphere === sphereFilter;
       const byPlan =
         planFilter === "all" ||
@@ -343,8 +341,16 @@ const InternsTable = ({ interns, onEdit, onDelete, onViolations, refresh }) => {
                       </td>
 
                       {/* Филиал */}
-                      <td className="px-4 py-3 text-sm text-slate-700 whitespace-nowrap">
-                        {intern.branch?.name || "—"}
+                      <td className="px-4 py-3 text-sm text-slate-700">
+                        <div className="flex flex-wrap gap-1">
+                          {intern.branches?.length
+                            ? intern.branches.map((b, i) => (
+                                <span key={i} className="inline-block bg-slate-100 text-slate-600 text-xs px-2 py-0.5 rounded-full whitespace-nowrap">
+                                  {b.branch?.name || "—"}
+                                </span>
+                              ))
+                            : "—"}
+                        </div>
                       </td>
 
                       {/* Контакты */}
@@ -744,8 +750,7 @@ const InternsTable = ({ interns, onEdit, onDelete, onViolations, refresh }) => {
                   {showHeadInternModal.name} {showHeadInternModal.lastName}
                 </p>
                 <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-700 text-left mb-3">
-                  Предыдущий Head Intern в{" "}
-                  <strong>{showHeadInternModal.branch?.name}</strong> будет снят автоматически
+                  Предыдущий Head Intern в этом филиале будет снят автоматически
                 </div>
                 <p className="text-xs text-slate-400 mb-6">
                   Head Intern может выдавать предупреждения другим интернам без привязки к уроку
