@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Users, Building2, UserCheck, BarChart3, Home, LogOut, Scale, Clock } from 'lucide-react';
+import { Users, Building2, UserCheck, BarChart3, Home, LogOut, Scale, Clock, TrendingDown } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
 const Sidebar = () => {
@@ -14,6 +14,7 @@ const Sidebar = () => {
     { name: 'Филиалы', href: '/branches', icon: Building2 },
     { name: 'Рейтинг Интернов', href: '/interns/rating', icon: BarChart3 },
     { name: 'Долги Менторов', href: '/mentor-debt', icon: Clock },
+    { name: 'Низкая активность', href: '/interns/inactive', icon: TrendingDown },
     { name: 'Правила и нарушения', href: '/rules', icon: Scale },
     { name: 'Журнал нарушений', href: '/violations', icon: Scale },
   ];

@@ -18,6 +18,7 @@ import InternsRating from "./pages/InternsRating";
 import Rules from "./pages/Rules";
 import MentorDebt from "./pages/MentorDebt";
 import ViolationsPage from "./pages/ViolationsPage";
+import InactiveInterns from "./pages/InactiveInterns";
 
 const Layout = ({ children }) => {
   return (
@@ -115,6 +116,16 @@ function App() {
                 <ProtectedRoute>
                   <Layout>
                     <ViolationsPage />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/interns/inactive"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <InactiveInterns />
                   </Layout>
                 </ProtectedRoute>
               }
