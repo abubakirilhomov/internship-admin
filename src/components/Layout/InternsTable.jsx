@@ -33,12 +33,33 @@ const InternsTable = ({ interns, onEdit, onDelete, onViolations, rules, refresh 
 
   // 🔹 Для фильтрации по филиалу
   const [selectedBranch, setSelectedBranch] = useState("all");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [sphereFilter, setSphereFilter] = useState("all");
+  const [planFilter, setPlanFilter] = useState("all");
 
   // 🔹 Фильтруем интернов
   const filteredInterns = useMemo(() => {
-    if (selectedBranch === "all") return interns;
-    return interns.filter((i) => i.branch?._id === selectedBranch);
-  }, [interns, selectedBranch]);
+    const normalizedQuery = searchTerm.trim().toLowerCase();
+
+    return interns.filter((intern) => {
+      const byBranch =
+        selectedBranch === "all" || intern.branch?._id === selectedBranch;
+      const bySphere = sphereFilter === "all" || intern.sphere === sphereFilter;
+      const byPlan =
+        planFilter === "all" ||
+        (planFilter === "blocked" && intern.isPlanBlocked) ||
+        (planFilter === "active" && !intern.isPlanBlocked);
+
+      const bySearch =
+        !normalizedQuery ||
+        `${intern.name} ${intern.lastName}`.toLowerCase().includes(normalizedQuery) ||
+        (intern.username || "").toLowerCase().includes(normalizedQuery) ||
+        (intern.phoneNumber || "").toLowerCase().includes(normalizedQuery) ||
+        (intern.telegram || "").toLowerCase().includes(normalizedQuery);
+
+      return byBranch && bySphere && byPlan && bySearch;
+    });
+  }, [interns, selectedBranch, searchTerm, sphereFilter, planFilter]);
 
   const handleDeleteConfirm = (id) => {
     onDelete(id);
@@ -138,8 +159,36 @@ const InternsTable = ({ interns, onEdit, onDelete, onViolations, rules, refresh 
   return (
     <div className="overflow-x-auto">
       {/* 🔹 Фильтр по филиалу */}
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
         <h2 className="text-xl font-bold">Стажёры</h2>
+        <input
+          className="input input-bordered w-72"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          placeholder="Поиск: ФИО, username, телефон, telegram"
+        />
+        <select
+          className="select select-bordered w-56"
+          value={sphereFilter}
+          onChange={(e) => setSphereFilter(e.target.value)}
+        >
+          <option value="all">Все сферы</option>
+          <option value="backend-nodejs">Backend (Node.js)</option>
+          <option value="backend-python">Backend (Python)</option>
+          <option value="frontend-react">Frontend (React)</option>
+          <option value="frontend-vue">Frontend (Vue)</option>
+          <option value="mern-stack">MERN Stack</option>
+          <option value="full-stack">Full Stack</option>
+        </select>
+        <select
+          className="select select-bordered w-56"
+          value={planFilter}
+          onChange={(e) => setPlanFilter(e.target.value)}
+        >
+          <option value="all">Все статусы плана</option>
+          <option value="blocked">Только заблокированные</option>
+          <option value="active">Только активные</option>
+        </select>
         <select
           className="select select-bordered w-64"
           value={selectedBranch}
@@ -160,15 +209,18 @@ const InternsTable = ({ interns, onEdit, onDelete, onViolations, rules, refresh 
             <th>Имя</th>
             <th>Фамилия</th>
             <th>Филиал</th>
+            <th>Контакты</th>
+            <th>Сфера</th>
             <th>Уроки</th>
             <th>Грейд</th>
+            <th>Статус</th>
             <th className="text-center">Действия</th>
           </tr>
         </thead>
         <tbody>
           {filteredInterns.length === 0 ? (
             <tr>
-              <td colSpan="6" className="text-center py-6 text-gray-500">
+              <td colSpan="9" className="text-center py-6 text-gray-500">
                 Нет стажёров для выбранного филиала
               </td>
             </tr>
@@ -192,6 +244,13 @@ const InternsTable = ({ interns, onEdit, onDelete, onViolations, rules, refresh 
                 <td>{intern.lastName}</td>
                 <td>{intern.branch?.name || "—"}</td>
                 <td>
+                  <div className="text-xs">
+                    <div>{intern.phoneNumber || "—"}</div>
+                    <div>{intern.telegram || "—"}</div>
+                  </div>
+                </td>
+                <td>{intern.sphere || "—"}</td>
+                <td>
                   <div className="flex items-center gap-1">
                     <span>{intern?.lessonsVisited?.length || 0}</span>
                     {intern.bonusLessons?.length > 0 && (
@@ -205,6 +264,13 @@ const InternsTable = ({ interns, onEdit, onDelete, onViolations, rules, refresh 
                   </div>
                 </td>
                 <td className="capitalize">{intern.grade}</td>
+                <td>
+                  {intern.isPlanBlocked ? (
+                    <span className="badge badge-error">Заблокирован</span>
+                  ) : (
+                    <span className="badge badge-success">Активен</span>
+                  )}
+                </td>
                 <td
                   className="flex justify-center gap-2 flex-wrap"
                   onClick={(e) => e.stopPropagation()}

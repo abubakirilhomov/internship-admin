@@ -7,6 +7,9 @@ import {
   Star,
   Award,
   Calendar,
+  Phone,
+  Send,
+  Image,
 } from "lucide-react";
 import { api } from "../../utils/api";
 
@@ -16,6 +19,10 @@ const InternFormModal = ({ onClose, branches, initialData, refresh }) => {
     lastName: "",
     username: "",
     password: "",
+    phoneNumber: "",
+    telegram: "",
+    sphere: "backend-nodejs",
+    profilePhoto: "",
     branch: "",
     mentor: "",
     lessonsVisitedFake: 0,
@@ -26,6 +33,7 @@ const InternFormModal = ({ onClose, branches, initialData, refresh }) => {
 
   const [mentors, setMentors] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [error, setError] = useState(null);
 
   useEffect(() => {
@@ -39,6 +47,10 @@ const InternFormModal = ({ onClose, branches, initialData, refresh }) => {
         lastName: initialData.lastName || "",
         username: initialData.username || "",
         password: "",
+        phoneNumber: initialData.phoneNumber || "",
+        telegram: initialData.telegram || "",
+        sphere: initialData.sphere || "backend-nodejs",
+        profilePhoto: initialData.profilePhoto || "",
         branch: initialData.branch?._id || "",
         mentor: initialData.mentor?._id || "",
         lessonsVisitedFake: initialData.lessonsVisited?.length || 0, // <-- здесь
@@ -67,6 +79,19 @@ const InternFormModal = ({ onClose, branches, initialData, refresh }) => {
   const handleChange = (e) => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handlePhotoUpload = async (file) => {
+    if (!file) return;
+    try {
+      setUploadingPhoto(true);
+      const uploaded = await api.uploads.uploadImage(file, "interns");
+      setForm((prev) => ({ ...prev, profilePhoto: uploaded.url }));
+    } catch (uploadError) {
+      setError(uploadError.message || "Ошибка загрузки фото");
+    } finally {
+      setUploadingPhoto(false);
+    }
   };
 
   const validateForm = () => {
@@ -109,7 +134,11 @@ const InternFormModal = ({ onClose, branches, initialData, refresh }) => {
         name: form.name,
         lastName: form.lastName,
         username: form.username,
-        password: form.password,
+        ...(form.password ? { password: form.password } : {}),
+        phoneNumber: form.phoneNumber,
+        telegram: form.telegram,
+        sphere: form.sphere,
+        profilePhoto: form.profilePhoto,
         branch: form.branch,
         mentor: form.mentor,
         grade: form.grade,
@@ -222,6 +251,93 @@ const InternFormModal = ({ onClose, branches, initialData, refresh }) => {
               className="input input-bordered w-full"
               required={!initialData}
             />
+          </div>
+
+          <div className="form-control">
+            <label className="label">
+              <span className="label-text flex items-center gap-2">
+                <Phone className="h-4 w-4" /> Номер телефона
+              </span>
+            </label>
+            <input
+              type="text"
+              name="phoneNumber"
+              value={form.phoneNumber}
+              onChange={handleChange}
+              placeholder="+998..."
+              className="input input-bordered w-full"
+            />
+          </div>
+
+          <div className="form-control">
+            <label className="label">
+              <span className="label-text flex items-center gap-2">
+                <Send className="h-4 w-4" /> Telegram
+              </span>
+            </label>
+            <input
+              type="text"
+              name="telegram"
+              value={form.telegram}
+              onChange={handleChange}
+              placeholder="@username"
+              className="input input-bordered w-full"
+            />
+          </div>
+
+          <div className="form-control">
+            <label className="label">
+              <span className="label-text flex items-center gap-2">
+                <Award className="h-4 w-4" /> Сфера
+              </span>
+            </label>
+            <select
+              name="sphere"
+              value={form.sphere}
+              onChange={handleChange}
+              className="select select-bordered w-full"
+              required
+            >
+              <option value="backend-nodejs">Backend (Node.js)</option>
+              <option value="backend-python">Backend (Python)</option>
+              <option value="frontend-react">Frontend (React)</option>
+              <option value="frontend-vue">Frontend (Vue)</option>
+              <option value="mern-stack">MERN Stack</option>
+              <option value="full-stack">Full Stack</option>
+            </select>
+          </div>
+
+          <div className="form-control">
+            <label className="label">
+              <span className="label-text flex items-center gap-2">
+                <Image className="h-4 w-4" /> Фото профиля
+              </span>
+            </label>
+            <input
+              type="file"
+              accept="image/*"
+              className="file-input file-input-bordered w-full"
+              onChange={(e) => handlePhotoUpload(e.target.files?.[0])}
+              disabled={uploadingPhoto}
+            />
+            <input
+              type="text"
+              name="profilePhoto"
+              value={form.profilePhoto}
+              onChange={handleChange}
+              placeholder="URL фото появится после загрузки"
+              className="input input-bordered w-full mt-2"
+            />
+            {uploadingPhoto && (
+              <span className="text-sm text-info mt-1">Загрузка фото...</span>
+            )}
+            {form.profilePhoto && (
+              <img
+                src={form.profilePhoto}
+                alt="preview"
+                className="w-16 h-16 rounded-full object-cover mt-2 border"
+              />
+            )}
           </div>
 
           {/* Branch */}

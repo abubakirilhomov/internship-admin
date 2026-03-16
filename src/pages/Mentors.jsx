@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Pencil, Trash2, User, Lock, Building, Shield, X, Check } from 'lucide-react';
+import { Plus, Pencil, Trash2, User, Lock, Building, Shield, X, Check, Image } from 'lucide-react';
 import { api } from '../utils/api';
 
 const Mentors = () => {
@@ -15,10 +15,12 @@ const Mentors = () => {
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [tempPassword, setTempPassword] = useState('');
   const [resetMentorName, setResetMentorName] = useState('');
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     lastName: '',
     password: '',
+    profilePhoto: '',
     branch: '',
     role: 'mentor',
   });
@@ -69,14 +71,14 @@ const Mentors = () => {
     if (!formData.password && !isEditing) errors.password = 'Пароль обязателен';
     if (formData.password && formData.password.length < 6) errors.password = 'Пароль должен содержать не менее 6 символов';
     if (!formData.branch) errors.branch = 'Выберите филиал';
-    if (!['mentor', 'admin'].includes(formData.role)) errors.role = 'Неверная роль';
+    if (!['mentor', 'admin', 'branchManager'].includes(formData.role)) errors.role = 'Неверная роль';
 
     setFieldErrors(errors);
     return Object.keys(errors).length === 0;
   };
 
   const resetForm = () => {
-    setFormData({ name: '', lastName: '', password: '', branch: '', role: 'mentor' });
+    setFormData({ name: '', lastName: '', password: '', profilePhoto: '', branch: '', role: 'mentor' });
     setError(null);
     setFieldErrors({});
     setIsEditing(false);
@@ -115,6 +117,7 @@ const Mentors = () => {
       name: mentor.name,
       lastName: mentor.lastName || '',
       password: '',
+      profilePhoto: mentor.profilePhoto || '',
       branch: mentor.branch?._id || mentor.branch || '',
       role: mentor.role || 'mentor',
     });
@@ -146,6 +149,19 @@ const Mentors = () => {
         setError('Ошибка при сбросе пароля');
         console.error('Error resetting password:', error);
       }
+    }
+  };
+
+  const handlePhotoUpload = async (file) => {
+    if (!file) return;
+    try {
+      setUploadingPhoto(true);
+      const uploaded = await api.uploads.uploadImage(file, 'mentors');
+      setFormData((prev) => ({ ...prev, profilePhoto: uploaded.url }));
+    } catch (uploadError) {
+      setError(uploadError.message || 'Ошибка загрузки фото');
+    } finally {
+      setUploadingPhoto(false);
     }
   };
 
@@ -197,6 +213,7 @@ const Mentors = () => {
                   <th>Филиал</th>
                   <th>Роль</th>
                   <th>Дата создания</th>
+                  <th>Фото</th>
                   <th>Действия</th>
                 </tr>
               </thead>
@@ -218,6 +235,13 @@ const Mentors = () => {
                       </span>
                     </td>
                     <td>{new Date(mentor.createdAt).toLocaleDateString('ru-RU')}</td>
+                    <td>
+                      {mentor.profilePhoto ? (
+                        <img src={mentor.profilePhoto} alt={mentor.name} className="w-10 h-10 rounded-full object-cover" />
+                      ) : (
+                        <span className="text-base-content/40">—</span>
+                      )}
+                    </td>
                     <td>
                       <div className="flex gap-2">
                         <button
@@ -345,6 +369,33 @@ const Mentors = () => {
               </div>
             </div>
 
+            <div className="form-control">
+              <label className="label">
+                <span className="label-text font-medium flex items-center gap-2">
+                  <Image className="h-4 w-4" />
+                  Фото профиля
+                </span>
+              </label>
+              <input
+                type="file"
+                accept="image/*"
+                className="file-input file-input-bordered w-full"
+                onChange={(e) => handlePhotoUpload(e.target.files?.[0])}
+                disabled={uploadingPhoto}
+              />
+              <input
+                type="text"
+                className="input input-bordered focus:input-primary mt-2"
+                value={formData.profilePhoto}
+                onChange={(e) => setFormData({ ...formData, profilePhoto: e.target.value })}
+                placeholder="URL фото появится после загрузки"
+              />
+              {uploadingPhoto && <span className="text-xs text-info mt-1">Загрузка фото...</span>}
+              {formData.profilePhoto && (
+                <img src={formData.profilePhoto} alt="preview" className="w-14 h-14 rounded-full object-cover mt-2 border" />
+              )}
+            </div>
+
             {/* Password Field */}
             <div className="form-control">
               <label className="label">
@@ -423,6 +474,7 @@ const Mentors = () => {
                   }}
                 >
                   <option value="mentor">Ментор</option>
+                  <option value="branchManager">Branch manager</option>
                   <option value="admin">Администратор</option>
                 </select>
                 {fieldErrors.role && (

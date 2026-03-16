@@ -9,6 +9,8 @@ const getAuthHeaders = () => {
   };
 };
 
+const getAuthToken = () => localStorage.getItem("token");
+
 export const api = {
   // Interns
   interns: {
@@ -57,6 +59,10 @@ export const api = {
         headers: getAuthHeaders(),
         body: JSON.stringify(data),
       });
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || "Ошибка при создании стажёра");
+      }
       return response.json();
     },
     getRating: async () => {
@@ -71,6 +77,10 @@ export const api = {
         headers: getAuthHeaders(),
         body: JSON.stringify(data),
       });
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || "Ошибка при обновлении стажёра");
+      }
       return response.json();
     },
     delete: async (id) => {
@@ -270,6 +280,29 @@ export const api = {
       );
 
       return response.json();
+    },
+  },
+  uploads: {
+    uploadImage: async (file, folder = "profiles") => {
+      const token = getAuthToken();
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("folder", folder);
+
+      const response = await fetch(`${API_BASE_URL}/uploads/image`, {
+        method: "POST",
+        headers: {
+          ...(token && { Authorization: `Bearer ${token}` }),
+        },
+        body: formData,
+      });
+
+      const data = await response.json();
+      if (!response.ok || !data?.success) {
+        throw new Error(data?.message || "Ошибка загрузки изображения");
+      }
+
+      return data.data;
     },
   },
 };
