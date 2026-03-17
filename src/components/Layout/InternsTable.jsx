@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef } from "react";
 import {
   Trash2, Edit, ArrowUpCircle, History, Gift, Crown,
-  Unlock, Lock, MoreVertical, AlertTriangle, X, Search,
+  Unlock, Lock, MoreVertical, AlertTriangle, X, Search, Download,
 } from "lucide-react";
 import { toast } from "react-toastify";
 import { api } from "../../utils/api";
@@ -216,6 +216,38 @@ const InternsTable = ({ interns, onEdit, onDelete, onViolations, refresh }) => {
     }
   };
 
+  const exportToCSV = () => {
+    const headers = ["Имя", "Фамилия", "Username", "Телефон", "Telegram", "Сфера", "Грейд", "Филиал", "Ментор", "Дата вступления"];
+
+    const rows = filteredInterns.map(intern => {
+      const branch = intern.branches?.[0]?.branch?.name || "—";
+      const mentor = intern.branches?.[0]?.mentor
+        ? `${intern.branches[0].mentor.name || ""} ${intern.branches[0].mentor.lastName || ""}`.trim()
+        : "—";
+      return [
+        intern.name || "",
+        intern.lastName || "",
+        intern.username || "",
+        intern.phoneNumber || "",
+        intern.telegram || "",
+        intern.sphere || "",
+        intern.grade || "",
+        branch,
+        mentor,
+        intern.dateJoined ? new Date(intern.dateJoined).toLocaleDateString("ru-RU") : "",
+      ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(",");
+    });
+
+    const csv = [headers.join(","), ...rows].join("\n");
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `stazheры_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   // ── Render ───────────────────────────────────────────────────────────────────
   return (
     <div className="space-y-3">
@@ -272,6 +304,14 @@ const InternsTable = ({ interns, onEdit, onDelete, onViolations, refresh }) => {
                 ))}
               </select>
             ))}
+            <button
+              onClick={exportToCSV}
+              className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors"
+              title="Экспорт в CSV"
+            >
+              <Download className="w-4 h-4" />
+              CSV
+            </button>
           </div>
         </div>
         {hasFilters && (

@@ -298,7 +298,7 @@ const Dashboard = () => {
                           </span>
                         </div>
                         <span className="text-sm font-medium text-gray-900">
-                          {mentor.name} {mentor.lastName}
+                          {mentor?.name} {mentor?.lastName}
                         </span>
                       </div>
                     </td>
