@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Pencil, Trash2, User, Lock, Building, Shield, X, Check, Image } from 'lucide-react';
 import { api } from '../utils/api';
+import { toast, ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 const Mentors = () => {
   const [mentors, setMentors] = useState([]);
@@ -16,6 +18,9 @@ const Mentors = () => {
   const [tempPassword, setTempPassword] = useState('');
   const [resetMentorName, setResetMentorName] = useState('');
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [showDeleteModal, setShowDeleteModal] = useState(null);
+  const [showResetConfirmModal, setShowResetConfirmModal] = useState(null);
   const [formData, setFormData] = useState({
     name: '',
     lastName: '',
@@ -99,13 +104,15 @@ const Mentors = () => {
     try {
       if (isEditing) {
         await api.mentors.update(editId, formData);
+        toast.success('Ментор обновлён');
       } else {
         await api.mentors.create(formData);
+        toast.success('Ментор создан');
       }
       closeModal();
       fetchMentors();
     } catch (error) {
-      setError(isEditing ? 'Ошибка при обновлении ментора' : 'Ошибка при создании ментора');
+      toast.error(error.message || 'Произошла ошибка');
       console.error('Error saving mentor:', error);
     } finally {
       setIsSubmitting(false);
@@ -130,28 +137,28 @@ const Mentors = () => {
   };
 
   const handleDelete = async (id) => {
-    if (confirm('Вы уверены, что хотите удалить этого ментора?')) {
-      try {
-        await api.mentors.delete(id);
-        fetchMentors();
-      } catch (error) {
-        setError('Ошибка при удалении ментора');
-        console.error('Error deleting mentor:', error);
-      }
+    try {
+      await api.mentors.delete(id);
+      setShowDeleteModal(null);
+      fetchMentors();
+      toast.success('Ментор удалён');
+    } catch (error) {
+      toast.error(error.message || 'Произошла ошибка');
     }
   };
 
-  const handleResetPassword = async (mentor) => {
-    if (confirm(`Вы уверены, что хотите сбросить пароль для ${mentor.name} ${mentor.lastName || ''}?`)) {
-      try {
-        const result = await api.mentors.resetPassword(mentor._id);
-        setTempPassword(result.tempPassword);
-        setResetMentorName(`${mentor.name} ${mentor.lastName || ''}`);
-        setShowPasswordModal(true);
-      } catch (error) {
-        setError('Ошибка при сбросе пароля');
-        console.error('Error resetting password:', error);
-      }
+  const confirmResetPassword = async () => {
+    const mentor = showResetConfirmModal;
+    try {
+      const result = await api.mentors.resetPassword(mentor._id);
+      setTempPassword(result.tempPassword);
+      setResetMentorName(`${mentor.name} ${mentor.lastName || ''}`);
+      setShowResetConfirmModal(null);
+      setShowPasswordModal(true);
+      toast.success('Пароль сброшен');
+    } catch (error) {
+      toast.error(error.message || 'Произошла ошибка');
+      setShowResetConfirmModal(null);
     }
   };
 
@@ -167,6 +174,15 @@ const Mentors = () => {
       setUploadingPhoto(false);
     }
   };
+
+  const filteredMentors = mentors.filter(m => {
+    if (!searchTerm.trim()) return true;
+    const q = searchTerm.trim().toLowerCase();
+    return (
+      m.name?.toLowerCase().includes(q) ||
+      m.lastName?.toLowerCase().includes(q)
+    );
+  });
 
   if (loading) {
     return (
@@ -205,6 +221,19 @@ const Mentors = () => {
         </button>
       </div>
 
+      <div className="mb-4 flex items-center gap-2 max-w-sm">
+        <input
+          type="text"
+          placeholder="Поиск по имени..."
+          value={searchTerm}
+          onChange={e => setSearchTerm(e.target.value)}
+          className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+        {searchTerm && (
+          <button onClick={() => setSearchTerm('')} className="text-slate-400 hover:text-slate-600 text-sm px-2">✕</button>
+        )}
+      </div>
+
       <div className="card bg-base-100 shadow-xl">
         <div className="card-body">
           <div className="overflow-x-auto">
@@ -221,7 +250,7 @@ const Mentors = () => {
                 </tr>
               </thead>
               <tbody>
-                {mentors.map((mentor) => (
+                {filteredMentors.map((mentor) => (
                   <tr key={mentor._id}>
                     <td>{mentor.name}</td>
                     <td>{mentor.lastName || '-'}</td>
@@ -259,14 +288,14 @@ const Mentors = () => {
                         </button>
                         <button
                           className="btn btn-sm btn-ghost text-warning"
-                          onClick={() => handleResetPassword(mentor)}
+                          onClick={() => setShowResetConfirmModal(mentor)}
                           title="Сбросить пароль"
                         >
                           <Lock className="h-4 w-4" />
                         </button>
                         <button
                           className="btn btn-sm btn-ghost text-error"
-                          onClick={() => handleDelete(mentor._id)}
+                          onClick={() => setShowDeleteModal(mentor)}
                           title="Удалить"
                         >
                           <Trash2 className="h-4 w-4" />
@@ -275,6 +304,13 @@ const Mentors = () => {
                     </td>
                   </tr>
                 ))}
+                {filteredMentors.length === 0 && (
+                  <tr>
+                    <td colSpan={7} className="text-center py-8 text-slate-400 text-sm">
+                      {searchTerm ? 'Ничего не найдено' : 'Нет менторов'}
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
@@ -598,6 +634,44 @@ const Mentors = () => {
           }}>close</button>
         </form>
       </dialog>
+
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setShowDeleteModal(null)}>
+          <div className="bg-white rounded-2xl w-full max-w-sm shadow-xl p-6 text-center" onClick={e => e.stopPropagation()}>
+            <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Trash2 className="w-6 h-6 text-red-500" />
+            </div>
+            <h3 className="font-bold text-lg text-slate-900 mb-1">Удалить ментора?</h3>
+            <p className="text-sm text-slate-500 mb-6">
+              <strong>{showDeleteModal.name} {showDeleteModal.lastName || ''}</strong> будет удалён без возможности восстановления.
+            </p>
+            <div className="flex gap-3">
+              <button onClick={() => setShowDeleteModal(null)} className="flex-1 px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-100 rounded-xl transition-colors">Отмена</button>
+              <button onClick={() => handleDelete(showDeleteModal._id)} className="flex-1 px-4 py-2.5 text-sm font-medium bg-red-500 hover:bg-red-600 text-white rounded-xl transition-colors">Удалить</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showResetConfirmModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setShowResetConfirmModal(null)}>
+          <div className="bg-white rounded-2xl w-full max-w-sm shadow-xl p-6 text-center" onClick={e => e.stopPropagation()}>
+            <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Lock className="w-6 h-6 text-amber-500" />
+            </div>
+            <h3 className="font-bold text-lg text-slate-900 mb-1">Сбросить пароль?</h3>
+            <p className="text-sm text-slate-500 mb-6">
+              Будет создан временный пароль для <strong>{showResetConfirmModal.name} {showResetConfirmModal.lastName || ''}</strong>.
+            </p>
+            <div className="flex gap-3">
+              <button onClick={() => setShowResetConfirmModal(null)} className="flex-1 px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-100 rounded-xl transition-colors">Отмена</button>
+              <button onClick={confirmResetPassword} className="flex-1 px-4 py-2.5 text-sm font-medium bg-amber-500 hover:bg-amber-600 text-white rounded-xl transition-colors">Сбросить</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <ToastContainer position="top-right" autoClose={3000} />
     </div>
   );
 };

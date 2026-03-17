@@ -67,6 +67,7 @@ const InternsTable = ({ interns, onEdit, onDelete, onViolations, refresh }) => {
   const [bonusNotes, setBonusNotes] = useState("");
   const [bonusLoading, setBonusLoading] = useState(false);
   const [showHeadInternModal, setShowHeadInternModal] = useState(null);
+  const [headInternBranch, setHeadInternBranch] = useState("");
   const [showActivationModal, setShowActivationModal] = useState(null);
   const [activationNote, setActivationNote] = useState("");
 
@@ -80,6 +81,10 @@ const InternsTable = ({ interns, onEdit, onDelete, onViolations, refresh }) => {
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
+
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const PAGE_SIZE = 20;
 
   // Unique branches from interns list
   const branches = useMemo(() => {
@@ -109,6 +114,16 @@ const InternsTable = ({ interns, onEdit, onDelete, onViolations, refresh }) => {
       return byBranch && bySphere && byPlan && bySearch;
     });
   }, [interns, selectedBranch, searchTerm, sphereFilter, planFilter]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, sphereFilter, planFilter, selectedBranch]);
+
+  const totalPages = Math.ceil(filteredInterns.length / PAGE_SIZE);
+  const paginatedInterns = filteredInterns.slice(
+    (currentPage - 1) * PAGE_SIZE,
+    currentPage * PAGE_SIZE
+  );
 
   const hasFilters =
     searchTerm || sphereFilter !== "all" || planFilter !== "all" || selectedBranch !== "all";
@@ -176,7 +191,7 @@ const InternsTable = ({ interns, onEdit, onDelete, onViolations, refresh }) => {
 
   const handleSetHeadIntern = async (intern, makeHead) => {
     try {
-      await api.interns.setHeadIntern(intern._id, makeHead);
+      await api.interns.setHeadIntern(intern._id, makeHead, headInternBranch || undefined);
       toast.success(
         makeHead
           ? `👑 ${intern.name} ${intern.lastName} назначен Head Intern`
@@ -298,7 +313,7 @@ const InternsTable = ({ interns, onEdit, onDelete, onViolations, refresh }) => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filteredInterns.length === 0 ? (
+              {paginatedInterns.length === 0 ? (
                 <tr>
                   <td colSpan="7" className="px-4 py-14 text-center">
                     <div className="flex flex-col items-center gap-2 text-slate-400">
@@ -308,7 +323,7 @@ const InternsTable = ({ interns, onEdit, onDelete, onViolations, refresh }) => {
                   </td>
                 </tr>
               ) : (
-                filteredInterns.map((intern) => {
+                paginatedInterns.map((intern) => {
                   const bonusTotal =
                     intern.bonusLessons?.reduce((s, b) => s + b.count, 0) || 0;
                   const hasActivity =
@@ -345,11 +360,16 @@ const InternsTable = ({ interns, onEdit, onDelete, onViolations, refresh }) => {
                         <div className="flex flex-wrap gap-1">
                           {intern.branches?.length
                             ? intern.branches.map((b, i) => (
-                                <span key={i} className="inline-block bg-slate-100 text-slate-600 text-xs px-2 py-0.5 rounded-full whitespace-nowrap">
+                                <span key={i} className="inline-flex items-center gap-1 text-xs bg-slate-100 text-slate-700 rounded-full px-2 py-0.5">
                                   {b.branch?.name || "—"}
+                                  {b.mentor?.name && (
+                                    <span className="text-slate-400">· {b.mentor.name} {b.mentor.lastName || ""}</span>
+                                  )}
+                                  {b.isHeadIntern && <span title="Head Intern">👑</span>}
                                 </span>
                               ))
-                            : "—"}
+                            : <span className="text-slate-400 text-xs">—</span>
+                          }
                         </div>
                       </td>
 
@@ -462,7 +482,11 @@ const InternsTable = ({ interns, onEdit, onDelete, onViolations, refresh }) => {
                                   {
                                     icon: <Crown className="w-4 h-4 text-yellow-500" />,
                                     label: intern.isHeadIntern ? "Снять Head Intern" : "Назначить Head Intern",
-                                    onClick: () => { setShowHeadInternModal(intern); setOpenMenu(null); },
+                                    onClick: () => {
+                                      setShowHeadInternModal(intern);
+                                      setHeadInternBranch(intern.branches?.[0]?.branch?._id || intern.branches?.[0]?.branch || "");
+                                      setOpenMenu(null);
+                                    },
                                   },
                                   {
                                     icon: <ArrowUpCircle className="w-4 h-4 text-green-500" />,
@@ -502,6 +526,53 @@ const InternsTable = ({ interns, onEdit, onDelete, onViolations, refresh }) => {
             </tbody>
           </table>
         </div>
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between px-2 pt-4 border-t border-slate-100">
+            <span className="text-sm text-slate-500">
+              {filteredInterns.length} стажёров · стр. {currentPage} из {totalPages}
+            </span>
+            <div className="flex gap-1">
+              <button
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="px-3 py-1.5 text-sm rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                ←
+              </button>
+              {Array.from({ length: totalPages }, (_, i) => i + 1)
+                .filter(p => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 1)
+                .reduce((acc, p, idx, arr) => {
+                  if (idx > 0 && p - arr[idx - 1] > 1) acc.push('...');
+                  acc.push(p);
+                  return acc;
+                }, [])
+                .map((p, i) =>
+                  p === '...' ? (
+                    <span key={i} className="px-2 py-1.5 text-sm text-slate-400">…</span>
+                  ) : (
+                    <button
+                      key={p}
+                      onClick={() => setCurrentPage(p)}
+                      className={`px-3 py-1.5 text-sm rounded-lg border transition-colors ${
+                        p === currentPage
+                          ? 'bg-blue-600 text-white border-blue-600'
+                          : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                      }`}
+                    >
+                      {p}
+                    </button>
+                  )
+                )}
+              <button
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="px-3 py-1.5 text-sm rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                →
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ── Upgrade Modal ────────────────────────────────────────────────────── */}
@@ -716,7 +787,7 @@ const InternsTable = ({ interns, onEdit, onDelete, onViolations, refresh }) => {
 
       {/* ── Head Intern Modal ────────────────────────────────────────────────── */}
       {showHeadInternModal && (
-        <Modal onClose={() => setShowHeadInternModal(null)} maxWidth="max-w-sm">
+        <Modal onClose={() => { setShowHeadInternModal(null); setHeadInternBranch(""); }} maxWidth="max-w-sm">
           <div className="p-6 text-center">
             <div className="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <Crown className="w-6 h-6 text-yellow-500" />
@@ -730,7 +801,7 @@ const InternsTable = ({ interns, onEdit, onDelete, onViolations, refresh }) => {
                 </p>
                 <div className="flex gap-2">
                   <button
-                    onClick={() => setShowHeadInternModal(null)}
+                    onClick={() => { setShowHeadInternModal(null); setHeadInternBranch(""); }}
                     className="flex-1 px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
                   >
                     Отмена
@@ -755,9 +826,25 @@ const InternsTable = ({ interns, onEdit, onDelete, onViolations, refresh }) => {
                 <p className="text-xs text-slate-400 mb-6">
                   Head Intern может выдавать предупреждения другим интернам без привязки к уроку
                 </p>
+                {showHeadInternModal.branches?.length > 1 && (
+                  <div className="mb-4 text-left">
+                    <label className="block text-xs font-medium text-slate-600 mb-1">Выберите филиал</label>
+                    <select
+                      className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                      value={headInternBranch}
+                      onChange={(e) => setHeadInternBranch(e.target.value)}
+                    >
+                      {showHeadInternModal.branches.map((b) => (
+                        <option key={b.branch?._id || b.branch} value={b.branch?._id || b.branch}>
+                          {b.branch?.name || "Филиал"}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
                 <div className="flex gap-2">
                   <button
-                    onClick={() => setShowHeadInternModal(null)}
+                    onClick={() => { setShowHeadInternModal(null); setHeadInternBranch(""); }}
                     className="flex-1 px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
                   >
                     Отмена

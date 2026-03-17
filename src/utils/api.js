@@ -121,11 +121,11 @@ export const api = {
       }
       return response.json();
     },
-    setHeadIntern: async (id, isHeadIntern) => {
+    setHeadIntern: async (id, isHeadIntern, branchId) => {
       const response = await fetch(`${API_BASE_URL}/interns/${id}/head-intern`, {
         method: "PATCH",
         headers: getAuthHeaders(),
-        body: JSON.stringify({ isHeadIntern }),
+        body: JSON.stringify({ isHeadIntern, branchId }),
       });
       if (!response.ok) {
         const errorText = await response.text();
@@ -161,6 +161,15 @@ export const api = {
         headers: getAuthHeaders(),
         body: JSON.stringify(data),
       });
+      return response.json();
+    },
+    update: async (id, data) => {
+      const response = await fetch(`${API_BASE_URL}/branches/${id}`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(data),
+      });
+      if (!response.ok) throw new Error('Ошибка при обновлении филиала');
       return response.json();
     },
     delete: async (id) => {

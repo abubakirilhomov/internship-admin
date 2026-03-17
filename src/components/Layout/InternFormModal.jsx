@@ -186,8 +186,8 @@ const InternFormModal = ({ onClose, branches, initialData, refresh }) => {
   };
 
   return (
-    <div className="modal modal-open">
-      <div className="modal-box">
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-xl" onClick={e => e.stopPropagation()}>
         <h3 className="font-bold text-lg mb-4">
           {initialData ? "Редактировать стажёра" : "Добавить стажёра"}
         </h3>
@@ -374,7 +374,10 @@ const InternFormModal = ({ onClose, branches, initialData, refresh }) => {
                 <div key={idx} className="flex gap-2 items-center">
                   <select
                     value={row.branch}
-                    onChange={(e) => handleBranchRowChange(idx, "branch", e.target.value)}
+                    onChange={(e) => {
+                      handleBranchRowChange(idx, "branch", e.target.value);
+                      handleBranchRowChange(idx, "mentor", ""); // reset mentor when branch changes
+                    }}
                     className="select select-bordered flex-1"
                     required
                   >
@@ -391,11 +394,16 @@ const InternFormModal = ({ onClose, branches, initialData, refresh }) => {
                     disabled={loading}
                   >
                     <option value="">Ментор</option>
-                    {mentors.map((m) => (
-                      <option key={m._id} value={m._id}>
-                        {m.name} {m.lastName || ""}
-                      </option>
-                    ))}
+                    {mentors
+                      .filter(m =>
+                        !row.branch ||
+                        m.branches?.some(b => String(b._id || b) === String(row.branch))
+                      )
+                      .map((m) => (
+                        <option key={m._id} value={m._id}>
+                          {m.name} {m.lastName || ""}
+                        </option>
+                      ))}
                   </select>
                   {form.branches.length > 1 && (
                     <button
