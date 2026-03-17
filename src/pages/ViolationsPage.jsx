@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { api } from "../utils/api";
-import { ShieldAlert, AlertTriangle } from "lucide-react";
+import { ShieldAlert, AlertTriangle, UserCircle } from "lucide-react";
 
 const CATEGORY_META = {
   red:    { label: "Красные",  dot: "bg-red-500",    badge: "bg-red-100 text-red-700 border-red-200" },
@@ -27,6 +27,66 @@ const CategoryBadge = ({ category }) => {
       <span className={`w-1.5 h-1.5 rounded-full ${meta.dot}`} />
       {meta.label}
     </span>
+  );
+};
+
+const ISSUED_BY_LABELS = {
+  mentor: "Ментор",
+  headIntern: "Head Intern",
+  admin: "Админ",
+  branchManager: "Branch Manager",
+};
+
+const ViolationRow = ({ v }) => {
+  const [expanded, setExpanded] = useState(false);
+  const hasNotes = v.notes && v.notes.trim().length > 0;
+  const issuerLabel = v.issuedByName?.trim() || ISSUED_BY_LABELS[v.issuedBy] || "—";
+
+  return (
+    <tr className="hover:bg-gray-50 transition-colors align-top">
+      <td className="px-4 py-3 text-gray-500 whitespace-nowrap text-sm">
+        {new Date(v.date).toLocaleDateString("ru-RU", {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+        })}
+      </td>
+      <td className="px-4 py-3 font-medium text-gray-900 whitespace-nowrap">
+        {v.internName || "—"}
+      </td>
+      <td className="px-4 py-3 text-gray-600 whitespace-nowrap text-sm">
+        {v.branchName || "—"}
+      </td>
+      <td className="px-4 py-3 text-gray-800 max-w-[220px] text-sm">
+        {v.ruleTitle || "—"}
+      </td>
+      <td className="px-4 py-3">
+        <CategoryBadge category={v.category} />
+      </td>
+      <td className="px-4 py-3 whitespace-nowrap">
+        <div className="flex items-center gap-1.5 text-sm text-gray-700">
+          <UserCircle className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+          <span>{issuerLabel}</span>
+        </div>
+      </td>
+      <td className="px-4 py-3 text-sm text-gray-600 max-w-[240px]">
+        {hasNotes ? (
+          <div>
+            <p className={expanded ? "" : "line-clamp-2"}>{v.notes}</p>
+            {v.notes.length > 80 && (
+              <button
+                onClick={() => setExpanded((e) => !e)}
+                className="text-xs text-blue-500 hover:underline mt-0.5"
+              >
+                {expanded ? "Свернуть" : "Показать всё"}
+              </button>
+            )}
+          </div>
+        ) : (
+          <span className="text-gray-300">—</span>
+        )}
+      </td>
+    </tr>
   );
 };
 
@@ -213,13 +273,14 @@ const ViolationsPage = () => {
               <th className="px-4 py-3 font-semibold text-gray-600">Филиал</th>
               <th className="px-4 py-3 font-semibold text-gray-600">Нарушение</th>
               <th className="px-4 py-3 font-semibold text-gray-600">Категория</th>
+              <th className="px-4 py-3 font-semibold text-gray-600">Выдал</th>
               <th className="px-4 py-3 font-semibold text-gray-600">Заметка</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
             {loading ? (
               <tr>
-                <td colSpan="6" className="text-center py-12">
+                <td colSpan="7" className="text-center py-12">
                   <div className="flex justify-center">
                     <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
                   </div>
@@ -227,7 +288,7 @@ const ViolationsPage = () => {
               </tr>
             ) : displayed.length === 0 ? (
               <tr>
-                <td colSpan="6" className="text-center py-16">
+                <td colSpan="7" className="text-center py-16">
                   <div className="flex flex-col items-center gap-2 text-gray-400">
                     <ShieldAlert className="w-10 h-10 opacity-30" />
                     <p className="font-medium text-gray-500">Нарушений не найдено</p>
@@ -237,30 +298,7 @@ const ViolationsPage = () => {
               </tr>
             ) : (
               displayed.map((v, i) => (
-                <tr key={i} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-4 py-3 text-gray-500 whitespace-nowrap">
-                    {new Date(v.date).toLocaleDateString("ru-RU", {
-                      day: "2-digit",
-                      month: "2-digit",
-                      year: "numeric",
-                    })}
-                  </td>
-                  <td className="px-4 py-3 font-medium text-gray-900 whitespace-nowrap">
-                    {v.internName || "—"}
-                  </td>
-                  <td className="px-4 py-3 text-gray-600 whitespace-nowrap">
-                    {v.branchName || "—"}
-                  </td>
-                  <td className="px-4 py-3 text-gray-800 max-w-xs">
-                    {v.ruleTitle || "—"}
-                  </td>
-                  <td className="px-4 py-3">
-                    <CategoryBadge category={v.category} />
-                  </td>
-                  <td className="px-4 py-3 text-gray-500 max-w-[200px] truncate" title={v.notes}>
-                    {v.notes || <span className="text-gray-300">—</span>}
-                  </td>
-                </tr>
+                <ViolationRow key={i} v={v} />
               ))
             )}
           </tbody>
