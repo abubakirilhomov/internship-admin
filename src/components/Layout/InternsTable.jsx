@@ -43,7 +43,8 @@ const SPHERE_LABELS = {
 const GRADE_OPTIONS = ["junior", "strongJunior", "middle", "strongMiddle", "senior"];
 
 // ─── Main Component ───────────────────────────────────────────────────────────
-const InternsTable = ({ interns, onEdit, onDelete, onViolations, refresh }) => {
+const InternsTable = ({ interns: internsProp, onEdit, onDelete, onViolations, refresh }) => {
+  const interns = Array.isArray(internsProp) ? internsProp : [];
   // Filters
   const [searchTerm, setSearchTerm] = useState("");
   const [sphereFilter, setSphereFilter] = useState("all");

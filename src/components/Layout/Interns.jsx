@@ -64,6 +64,7 @@ const Interns = () => {
   const [stats, setStats] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadingStats, setLoadingStats] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
   const [showFormModal, setShowFormModal] = useState(false);
   const [showViolationsModal, setShowViolationsModal] = useState(false);
@@ -88,10 +89,11 @@ const Interns = () => {
           api.mentors.getAll(),
           api.rules.getAll(),
         ]);
-        setInterns(internsData);
-        setBranches(branchesData);
-        setMentors(mentorsData);
-        setRules(Array.isArray(rulesData) ? rulesData : rulesData.data || []);
+        const toArray = (d) => (Array.isArray(d) ? d : d?.data || []);
+        setInterns(toArray(internsData));
+        setBranches(toArray(branchesData));
+        setMentors(toArray(mentorsData));
+        setRules(toArray(rulesData));
       } catch (err) {
         setError(err.message || "Ошибка при загрузке данных");
       } finally {
@@ -110,7 +112,8 @@ const Interns = () => {
           ? { period: "month", prevMonth: true }
           : { period };
       const data = await api.lessons.getAttendanceStats(params);
-      setStats(data.stats || data);
+      const statsArr = Array.isArray(data.stats) ? data.stats : Array.isArray(data) ? data : [];
+      setStats(statsArr);
     } catch (err) {
       setError(err.message || "Ошибка при загрузке статистики");
     } finally {
@@ -118,25 +121,27 @@ const Interns = () => {
     }
   };
 
-  useEffect(() => { fetchStats(); }, [period]);
-  useEffect(() => { if (period === "custom") fetchStats(); }, [startDate, endDate]);
+  useEffect(() => { if (period !== "custom") fetchStats(); }, [period]);
+  useEffect(() => { if (period === "custom") fetchStats(); }, [period, startDate, endDate]);
 
   // ── Refresh helpers ──────────────────────────────────────────────────────────
   const refreshInterns = async () => {
-    const data = await api.interns.getAll();
-    setInterns(data);
-    await fetchStats();
+    setRefreshing(true);
+    try {
+      const data = await api.interns.getAll();
+      setInterns(Array.isArray(data) ? data : data?.data || []);
+      await fetchStats();
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   const handleDelete = async (id) => {
     try {
-      setLoading(true);
       await api.interns.delete(id);
       await refreshInterns();
     } catch (err) {
       setError(err.message || "Ошибка при удалении стажёра");
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -206,6 +211,7 @@ const Interns = () => {
           <h1 className="text-2xl font-bold text-slate-900">Интерны</h1>
           <p className="text-sm text-slate-500 mt-0.5">
             {interns.length} стажёра в системе
+            {refreshing && <span className="ml-2 text-blue-400">обновление…</span>}
           </p>
         </div>
         <button
