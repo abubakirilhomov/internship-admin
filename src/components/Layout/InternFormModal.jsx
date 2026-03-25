@@ -6,7 +6,7 @@ import {
 } from "lucide-react";
 import { api } from "../../utils/api";
 
-const INTERN_URL = "https://intern-mars.uz";
+const INTERN_URL = "https://interns-mars.uz";
 
 const Field = ({ label, icon: Icon, error, children }) => (
   <div className="flex flex-col gap-1">

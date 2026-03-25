@@ -48,7 +48,7 @@ const CredentialCard = ({ mentorName, password, onClose }) => {
         <CheckCircle className="w-8 h-8 text-green-500" />
       </div>
       <div className="text-center">
-        <h3 className="text-lg font-bold text-slate-900">Ментор создан!</h3>
+        <h3 className="text-lg font-bold text-slate-900">Данные сохранены!</h3>
         <p className="text-sm text-slate-500 mt-0.5">{mentorName}</p>
       </div>
 
@@ -144,7 +144,14 @@ const MentorFormModal = ({ branches, editData, onClose, onSaved }) => {
       if (isEditing) {
         await api.mentors.update(editData._id, form);
         onSaved();
-        onClose();
+        if (form.password) {
+          setCredentials({
+            mentorName: `${form.name} ${form.lastName}`,
+            password: form.password,
+          });
+        } else {
+          onClose();
+        }
       } else {
         await api.mentors.create(form);
         onSaved();
@@ -172,7 +179,7 @@ const MentorFormModal = ({ branches, editData, onClose, onSaved }) => {
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
           <h3 className="text-base font-semibold text-slate-900">
-            {credentials ? "Ментор добавлен" : isEditing ? "Редактировать ментора" : "Добавить ментора"}
+            {credentials ? (isEditing ? "Ментор обновлён" : "Ментор добавлен") : isEditing ? "Редактировать ментора" : "Добавить ментора"}
           </h3>
           {!credentials && (
             <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 transition-colors">
