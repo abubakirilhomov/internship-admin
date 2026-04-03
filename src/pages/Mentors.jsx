@@ -143,22 +143,21 @@ const MentorFormModal = ({ branches, editData, onClose, onSaved }) => {
     try {
       if (isEditing) {
         await api.mentors.update(editData._id, form);
-        onSaved();
         if (form.password) {
           setCredentials({
             mentorName: `${form.name} ${form.lastName}`,
             password: form.password,
           });
-        } else {
-          onClose();
         }
+        onSaved();
+        if (!form.password) onClose();
       } else {
         await api.mentors.create(form);
-        onSaved();
         setCredentials({
           mentorName: `${form.name} ${form.lastName}`,
           password: form.password,
         });
+        onSaved();
       }
     } catch (err) {
       setErrors((p) => ({ ...p, submit: err.message || "Произошла ошибка" }));
