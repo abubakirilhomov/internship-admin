@@ -4,7 +4,8 @@ import { LogIn, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 const Login = () => {
-  const [email, setEmail] = useState('');
+  const [name, setName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
@@ -19,10 +20,10 @@ const Login = () => {
     setError('');
     setLoading(true);
 
-    const success = await login(email, password);
+    const success = await login(name, lastName, password);
 
     if (!success) {
-      setError('Неверный email или пароль');
+      setError('Неверное имя, фамилия или пароль');
     }
 
     setLoading(false);
@@ -42,14 +43,29 @@ const Login = () => {
           <form className="card-body" onSubmit={handleSubmit}>
             <div className="form-control">
               <label className="label">
-                <span className="label-text">Email</span>
+                <span className="label-text">Имя</span>
               </label>
               <input
                 type="text"
-                placeholder="email@example.com"
+                placeholder="Имя"
                 className="input input-bordered"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+              />
+            </div>
+
+            <div className="form-control">
+              <label className="label">
+                <span className="label-text">Фамилия</span>
+              </label>
+              <input
+                type="text"
+                placeholder="Фамилия"
+                className="input input-bordered"
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                required
               />
             </div>
 

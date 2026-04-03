@@ -33,8 +33,9 @@ const Field = ({ label, icon: Icon, error, hint, children }) => (
 const CredentialCard = ({ mentorName, password, onClose }) => {
   const [copied, setCopied] = useState(false);
 
-  const loginName = mentorName.split(" ")[0]; // name field is the login
-  const text = `Ваши данные для входа в систему MARS:\n\nСайт: ${MENTOR_URL}\nЛогин: ${loginName}\nПароль: ${password}`;
+  const [firstName, ...lastParts] = mentorName.split(" ");
+  const lastNameStr = lastParts.join(" ");
+  const text = `Ваши данные для входа в систему MARS:\n\nСайт: ${MENTOR_URL}\nИмя: ${firstName}\nФамилия: ${lastNameStr}\nПароль: ${password}`;
 
   const copy = async () => {
     await navigator.clipboard.writeText(text);
@@ -60,8 +61,12 @@ const CredentialCard = ({ mentorName, password, onClose }) => {
             <span className="font-medium text-blue-600">{MENTOR_URL}</span>
           </div>
           <div className="flex justify-between items-center text-sm">
-            <span className="text-slate-500">Логин</span>
-            <span className="font-mono font-medium text-slate-900">{loginName}</span>
+            <span className="text-slate-500">Имя</span>
+            <span className="font-mono font-medium text-slate-900">{firstName}</span>
+          </div>
+          <div className="flex justify-between items-center text-sm">
+            <span className="text-slate-500">Фамилия</span>
+            <span className="font-mono font-medium text-slate-900">{lastNameStr}</span>
           </div>
           <div className="flex justify-between items-center text-sm">
             <span className="text-slate-500">Пароль</span>

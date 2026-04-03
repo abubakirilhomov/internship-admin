@@ -24,21 +24,21 @@ export const AuthProvider = ({ children }) => {
     setLoading(false);
   }, []);
 
-const login = async (name, password) => {
+const login = async (name, lastName, password) => {
   try {
     const response = await fetch(`${apiUrl}/mentors/login`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ name, password }), // 👈 исправил
+      body: JSON.stringify({ name, lastName, password }),
     });
 
     if (response.ok) {
       const data = await response.json();
       localStorage.setItem('token', data.token);
       localStorage.setItem('user', JSON.stringify(data.user))
-      setUser({ name });
+      setUser(data.user);
       return true;
     }
     return false;
