@@ -214,6 +214,7 @@ export const api = {
         method: "DELETE",
         headers: getAuthHeaders(),
       });
+      if (response.status === 204) return {};
       return response.json();
     },
     resetPassword: async (id) => {
