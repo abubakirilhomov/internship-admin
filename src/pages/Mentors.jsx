@@ -142,28 +142,35 @@ const MentorFormModal = ({ branches, editData, onClose, onSaved }) => {
     setSubmitting(true);
     try {
       if (isEditing) {
-        await api.mentors.update(editData._id, form);
+        const res = await api.mentors.update(editData._id, form);
+        if (res?.error || res?.message?.includes?.("error")) throw new Error(res.message || "Ошибка");
         if (form.password) {
           setCredentials({
             mentorName: `${form.name} ${form.lastName}`,
             password: form.password,
           });
+        } else {
+          onSaved();
+          onClose();
         }
-        onSaved();
-        if (!form.password) onClose();
       } else {
-        await api.mentors.create(form);
+        const res = await api.mentors.create(form);
+        if (res?.error || res?.message?.includes?.("error")) throw new Error(res.message || "Ошибка");
         setCredentials({
           mentorName: `${form.name} ${form.lastName}`,
           password: form.password,
         });
-        onSaved();
       }
     } catch (err) {
       setErrors((p) => ({ ...p, submit: err.message || "Произошла ошибка" }));
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleCredentialClose = () => {
+    onSaved();
+    onClose();
   };
 
   return (
@@ -192,7 +199,7 @@ const MentorFormModal = ({ branches, editData, onClose, onSaved }) => {
             <CredentialCard
               mentorName={credentials.mentorName}
               password={credentials.password}
-              onClose={onClose}
+              onClose={handleCredentialClose}
             />
           ) : (
             <form onSubmit={handleSubmit} className="flex flex-col gap-4">
