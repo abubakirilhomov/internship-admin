@@ -93,6 +93,17 @@ export const api = {
       }
       return response.status === 204 ? {} : await response.json();
     },
+    resetPassword: async (id) => {
+      const response = await fetch(`${API_BASE_URL}/interns/${id}/reset-password`, {
+        method: "POST",
+        headers: getAuthHeaders(),
+      });
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || "Failed to reset password");
+      }
+      return response.json();
+    },
     rate: async (id, rating) => {
       const response = await fetch(`${API_BASE_URL}/interns/${id}/rate`, {
         method: "POST",

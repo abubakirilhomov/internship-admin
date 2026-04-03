@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect, useRef } from "react";
 import {
   Trash2, Edit, ArrowUpCircle, History, Gift, Crown,
   Unlock, Lock, MoreVertical, AlertTriangle, X, Search, Download,
+  KeyRound, Copy, Check, CheckCircle, RefreshCw,
 } from "lucide-react";
 import { toast } from "react-toastify";
 import { api } from "../../utils/api";
@@ -72,6 +73,9 @@ const InternsTable = ({ interns: internsProp, onEdit, onDelete, onViolations, re
   const [headInternBranch, setHeadInternBranch] = useState("");
   const [showActivationModal, setShowActivationModal] = useState(null);
   const [activationNote, setActivationNote] = useState("");
+  const [showCredentials, setShowCredentials] = useState(null); // { intern, tempPassword? }
+  const [credCopied, setCredCopied] = useState(false);
+  const [resetLoading, setResetLoading] = useState(false);
 
   // Close dropdown on outside click or scroll
   useEffect(() => {
@@ -488,6 +492,16 @@ const InternsTable = ({ interns: internsProp, onEdit, onDelete, onViolations, re
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-end gap-1">
                           <button
+                            onClick={() => {
+                              setShowCredentials({ intern, tempPassword: null });
+                              setCredCopied(false);
+                            }}
+                            title="Реквизиты"
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition-colors"
+                          >
+                            <KeyRound className="w-4 h-4" />
+                          </button>
+                          <button
                             onClick={() => onEdit(intern)}
                             title="Редактировать"
                             className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
@@ -720,6 +734,82 @@ const InternsTable = ({ interns: internsProp, onEdit, onDelete, onViolations, re
             >
               Повысить
             </button>
+          </div>
+        </Modal>
+      )}
+
+      {/* ── Credentials Modal ──────────────────────────────────────────────── */}
+      {showCredentials && (
+        <Modal onClose={() => setShowCredentials(null)} maxWidth="max-w-sm">
+          <div className="p-6">
+            <div className="flex flex-col items-center gap-4">
+              <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center">
+                <KeyRound className="w-6 h-6 text-emerald-600" />
+              </div>
+              <div className="text-center">
+                <h3 className="text-base font-bold text-slate-900">Реквизиты</h3>
+                <p className="text-sm text-slate-500 mt-0.5">
+                  {showCredentials.intern.name} {showCredentials.intern.lastName}
+                </p>
+              </div>
+
+              <div className="w-full bg-slate-50 rounded-xl border border-slate-200 p-4 space-y-2.5">
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-slate-500">Сайт</span>
+                  <span className="font-medium text-blue-600">interns-mars.uz</span>
+                </div>
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-slate-500">Логин</span>
+                  <span className="font-mono font-medium text-slate-900">{showCredentials.intern.username}</span>
+                </div>
+                {showCredentials.tempPassword && (
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-slate-500">Новый пароль</span>
+                    <span className="font-mono font-medium text-slate-900">{showCredentials.tempPassword}</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="w-full flex flex-col gap-2">
+                <button
+                  onClick={async () => {
+                    const cred = showCredentials;
+                    const text = cred.tempPassword
+                      ? `Ваши данные для входа:\n\nСайт: https://interns-mars.uz\nЛогин: ${cred.intern.username}\nПароль: ${cred.tempPassword}`
+                      : `Ваши данные для входа:\n\nСайт: https://interns-mars.uz\nЛогин: ${cred.intern.username}`;
+                    await navigator.clipboard.writeText(text);
+                    setCredCopied(true);
+                    setTimeout(() => setCredCopied(false), 2000);
+                  }}
+                  className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                    credCopied ? "bg-green-500 text-white" : "bg-slate-900 hover:bg-slate-800 text-white"
+                  }`}
+                >
+                  {credCopied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                  {credCopied ? "Скопировано!" : "Скопировать"}
+                </button>
+
+                <button
+                  disabled={resetLoading}
+                  onClick={async () => {
+                    setResetLoading(true);
+                    try {
+                      const res = await api.interns.resetPassword(showCredentials.intern._id);
+                      setShowCredentials((prev) => ({ ...prev, tempPassword: res.tempPassword }));
+                      setCredCopied(false);
+                    } catch (err) {
+                      toast.error(err.message || "Ошибка сброса пароля");
+                    } finally {
+                      setResetLoading(false);
+                    }
+                  }}
+                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium text-slate-700 border border-slate-200 hover:bg-slate-50 transition-colors disabled:opacity-50"
+                >
+                  <RefreshCw className={`w-4 h-4 ${resetLoading ? "animate-spin" : ""}`} />
+                  Сбросить пароль
+                </button>
+              </div>
+            </div>
           </div>
         </Modal>
       )}

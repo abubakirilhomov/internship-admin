@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import {
   Plus, Pencil, Trash2, User, Lock, Building, Shield,
   X, Check, Image, Eye, EyeOff, CheckCircle, Copy,
+  KeyRound, RefreshCw,
 } from "lucide-react";
 import { api } from "../utils/api";
 
@@ -418,6 +419,9 @@ const Mentors = () => {
   const [showResetConfirmModal, setShowResetConfirmModal] = useState(null);
   const [showPasswordModal, setShowPasswordModal] = useState(null); // { mentorName, tempPassword }
   const [searchTerm, setSearchTerm] = useState("");
+  const [showCredentialsModal, setShowCredentialsModal] = useState(null); // { mentor, tempPassword? }
+  const [credCopied, setCredCopied] = useState(false);
+  const [credResetLoading, setCredResetLoading] = useState(false);
 
   useEffect(() => {
     fetchAll();
@@ -564,6 +568,13 @@ const Mentors = () => {
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1 justify-end">
                       <button
+                        onClick={() => { setShowCredentialsModal({ mentor, tempPassword: null }); setCredCopied(false); }}
+                        className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+                        title="Реквизиты"
+                      >
+                        <KeyRound className="w-4 h-4" />
+                      </button>
+                      <button
                         onClick={() => { setEditData(mentor); setShowFormModal(true); }}
                         className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
                         title="Редактировать"
@@ -608,6 +619,88 @@ const Mentors = () => {
           onClose={() => setShowFormModal(false)}
           onSaved={fetchAll}
         />
+      )}
+
+      {/* Credentials modal */}
+      {showCredentialsModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setShowCredentialsModal(null)}>
+          <div className="bg-white rounded-2xl w-full max-w-sm shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <div className="p-6">
+              <div className="flex flex-col items-center gap-4">
+                <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center">
+                  <KeyRound className="w-6 h-6 text-emerald-600" />
+                </div>
+                <div className="text-center">
+                  <h3 className="text-base font-bold text-slate-900">Реквизиты</h3>
+                  <p className="text-sm text-slate-500 mt-0.5">
+                    {showCredentialsModal.mentor.name} {showCredentialsModal.mentor.lastName || ""}
+                  </p>
+                </div>
+
+                <div className="w-full bg-slate-50 rounded-xl border border-slate-200 p-4 space-y-2.5">
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-slate-500">Сайт</span>
+                    <span className="font-medium text-blue-600">mentors-mars.uz</span>
+                  </div>
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-slate-500">Имя</span>
+                    <span className="font-mono font-medium text-slate-900">{showCredentialsModal.mentor.name}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-slate-500">Фамилия</span>
+                    <span className="font-mono font-medium text-slate-900">{showCredentialsModal.mentor.lastName || "—"}</span>
+                  </div>
+                  {showCredentialsModal.tempPassword && (
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-slate-500">Новый пароль</span>
+                      <span className="font-mono font-medium text-slate-900">{showCredentialsModal.tempPassword}</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="w-full flex flex-col gap-2">
+                  <button
+                    onClick={async () => {
+                      const m = showCredentialsModal;
+                      const text = m.tempPassword
+                        ? `Ваши данные для входа:\n\nСайт: https://mentors-mars.uz\nИмя: ${m.mentor.name}\nФамилия: ${m.mentor.lastName || ""}\nПароль: ${m.tempPassword}`
+                        : `Ваши данные для входа:\n\nСайт: https://mentors-mars.uz\nИмя: ${m.mentor.name}\nФамилия: ${m.mentor.lastName || ""}`;
+                      await navigator.clipboard.writeText(text);
+                      setCredCopied(true);
+                      setTimeout(() => setCredCopied(false), 2000);
+                    }}
+                    className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                      credCopied ? "bg-green-500 text-white" : "bg-slate-900 hover:bg-slate-800 text-white"
+                    }`}
+                  >
+                    {credCopied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                    {credCopied ? "Скопировано!" : "Скопировать"}
+                  </button>
+
+                  <button
+                    disabled={credResetLoading}
+                    onClick={async () => {
+                      setCredResetLoading(true);
+                      try {
+                        const res = await api.mentors.resetPassword(showCredentialsModal.mentor._id);
+                        setShowCredentialsModal((prev) => ({ ...prev, tempPassword: res.tempPassword }));
+                        setCredCopied(false);
+                      } catch (err) {
+                        alert(err.message || "Ошибка сброса пароля");
+                      } finally {
+                        setCredResetLoading(false);
+                      }
+                    }}
+                    className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium text-slate-700 border border-slate-200 hover:bg-slate-50 transition-colors disabled:opacity-50"
+                  >
+                    <RefreshCw className={`w-4 h-4 ${credResetLoading ? "animate-spin" : ""}`} />
+                    Сбросить пароль
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Delete confirm */}
