@@ -53,7 +53,9 @@ const InternsTable = ({ interns: internsProp, onEdit, onDelete, onViolations, re
 
   // Row dropdown menu
   const [openMenu, setOpenMenu] = useState(null);
+  const [menuPos, setMenuPos] = useState({ top: 0, right: 0 });
   const menuRef = useRef(null);
+  const menuBtnRef = useRef(null);
 
   // Modals
   const [showDeleteModal, setShowDeleteModal] = useState(null);
@@ -72,15 +74,20 @@ const InternsTable = ({ interns: internsProp, onEdit, onDelete, onViolations, re
   const [showActivationModal, setShowActivationModal] = useState(null);
   const [activationNote, setActivationNote] = useState("");
 
-  // Close dropdown on outside click
+  // Close dropdown on outside click or scroll
   useEffect(() => {
     const handler = (e) => {
       if (menuRef.current && !menuRef.current.contains(e.target)) {
         setOpenMenu(null);
       }
     };
+    const onScroll = () => setOpenMenu(null);
     document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
+    window.addEventListener("scroll", onScroll, true);
+    return () => {
+      document.removeEventListener("mousedown", handler);
+      window.removeEventListener("scroll", onScroll, true);
+    };
   }, []);
 
   // Pagination
@@ -505,15 +512,25 @@ const InternsTable = ({ interns: internsProp, onEdit, onDelete, onViolations, re
                             ref={openMenu === intern._id ? menuRef : null}
                           >
                             <button
-                              onClick={() =>
-                                setOpenMenu(openMenu === intern._id ? null : intern._id)
-                              }
+                              ref={openMenu === intern._id ? menuBtnRef : null}
+                              onClick={(e) => {
+                                if (openMenu === intern._id) {
+                                  setOpenMenu(null);
+                                } else {
+                                  const rect = e.currentTarget.getBoundingClientRect();
+                                  setMenuPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right });
+                                  setOpenMenu(intern._id);
+                                }
+                              }}
                               className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
                             >
                               <MoreVertical className="w-4 h-4" />
                             </button>
                             {openMenu === intern._id && (
-                              <div className="absolute right-0 top-full mt-1 w-52 bg-white border border-slate-200 rounded-xl shadow-lg z-20 py-1 overflow-hidden">
+                              <div
+                                className="fixed w-52 bg-white border border-slate-200 rounded-xl shadow-lg py-1 overflow-hidden"
+                                style={{ top: menuPos.top, right: menuPos.right, zIndex: 9999 }}
+                              >
                                 {[
                                   {
                                     icon: <Gift className="w-4 h-4 text-purple-500" />,
