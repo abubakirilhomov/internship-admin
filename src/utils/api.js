@@ -328,6 +328,23 @@ export const api = {
       return response.json();
     },
   },
+  settings: {
+    getAll: async () => {
+      const response = await fetch(`${API_BASE_URL}/settings`, {
+        headers: getAuthHeaders(),
+      });
+      return response.json();
+    },
+    update: async (data) => {
+      const response = await fetch(`${API_BASE_URL}/settings`, {
+        method: "PUT",
+        headers: getAuthHeaders(),
+        body: JSON.stringify(data),
+      });
+      if (!response.ok) throw new Error(await response.text());
+      return response.json();
+    },
+  },
   uploads: {
     uploadImage: async (file, folder = "profiles") => {
       const token = getAuthToken();

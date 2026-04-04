@@ -21,6 +21,7 @@ import ViolationsPage from "./pages/ViolationsPage";
 import InactiveInterns from "./pages/InactiveInterns";
 import AttendancePage from "./pages/AttendancePage";
 import GradeConfig from "./pages/GradeConfig";
+import Settings from "./pages/Settings";
 
 const Layout = ({ children }) => {
   return (
@@ -148,6 +149,16 @@ function App() {
                 <ProtectedRoute>
                   <Layout>
                     <GradeConfig />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/settings"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Settings />
                   </Layout>
                 </ProtectedRoute>
               }
