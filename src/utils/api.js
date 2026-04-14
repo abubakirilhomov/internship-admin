@@ -239,6 +239,13 @@ export const api = {
       }
       return response.json();
     },
+    getStats: async (id) => {
+      const response = await fetch(`${API_BASE_URL}/mentors/${id}/stats`, {
+        headers: getAuthHeaders(),
+      });
+      if (!response.ok) throw new Error("Ошибка загрузки статистики ментора");
+      return response.json();
+    },
     getAllDebt: async () => {
       const response = await fetch(`${API_BASE_URL}/mentors/debt/all`, {
         headers: getAuthHeaders(),
@@ -310,6 +317,50 @@ export const api = {
         }
       );
 
+      return response.json();
+    },
+  },
+  lessonCriteria: {
+    getAll: async () => {
+      const response = await fetch(`${API_BASE_URL}/lesson-criteria?all=true`, {
+        headers: getAuthHeaders(),
+      });
+      if (!response.ok) throw new Error("Ошибка загрузки критериев");
+      return response.json();
+    },
+    create: async (data) => {
+      const response = await fetch(`${API_BASE_URL}/lesson-criteria`, {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify(data),
+      });
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || "Ошибка при создании критерия");
+      }
+      return response.json();
+    },
+    update: async (id, data) => {
+      const response = await fetch(`${API_BASE_URL}/lesson-criteria/${id}`, {
+        method: "PATCH",
+        headers: getAuthHeaders(),
+        body: JSON.stringify(data),
+      });
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || "Ошибка при обновлении критерия");
+      }
+      return response.json();
+    },
+    deactivate: async (id) => {
+      const response = await fetch(`${API_BASE_URL}/lesson-criteria/${id}`, {
+        method: "DELETE",
+        headers: getAuthHeaders(),
+      });
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || "Ошибка при деактивации критерия");
+      }
       return response.json();
     },
   },

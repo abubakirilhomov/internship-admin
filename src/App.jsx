@@ -22,6 +22,8 @@ import InactiveInterns from "./pages/InactiveInterns";
 import AttendancePage from "./pages/AttendancePage";
 import GradeConfig from "./pages/GradeConfig";
 import Settings from "./pages/Settings";
+import LessonCriteria from "./pages/LessonCriteria";
+import MentorQuality from "./pages/MentorQuality";
 
 const Layout = ({ children }) => {
   return (
@@ -159,6 +161,26 @@ function App() {
                 <ProtectedRoute>
                   <Layout>
                     <Settings />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/lesson-criteria"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <LessonCriteria />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/mentor-quality"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <MentorQuality />
                   </Layout>
                 </ProtectedRoute>
               }
