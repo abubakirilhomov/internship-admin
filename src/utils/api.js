@@ -1,3 +1,5 @@
+import { authFetch as fetch } from "./authFetch";
+
 const API_BASE_URL = import.meta.env.VITE_API_URL;
 const user = JSON.parse(localStorage.getItem("user"));
 const getAuthHeaders = () => {

@@ -25,10 +25,12 @@ export const AuthProvider = ({ children }) => {
           setUser(parsed);
         } else {
           localStorage.removeItem('token');
+          localStorage.removeItem('refreshToken');
           localStorage.removeItem('user');
         }
       } catch {
         localStorage.removeItem('token');
+        localStorage.removeItem('refreshToken');
         localStorage.removeItem('user');
       }
     }
@@ -63,6 +65,9 @@ const login = async (name, lastName, password) => {
     }
 
     localStorage.setItem('token', data.token);
+    if (data.refreshToken) {
+      localStorage.setItem('refreshToken', data.refreshToken);
+    }
     localStorage.setItem('user', JSON.stringify(data.user));
     setUser(data.user);
     return { ok: true };
@@ -75,6 +80,7 @@ const login = async (name, lastName, password) => {
 
   const logout = () => {
     localStorage.removeItem('token');
+    localStorage.removeItem('refreshToken');
     localStorage.removeItem('user');
     setUser(null);
   };
