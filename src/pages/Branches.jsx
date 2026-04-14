@@ -1,8 +1,64 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, Building2, MapPin, Pencil } from 'lucide-react';
+import { Plus, Trash2, Building2, MapPin, Pencil, X } from 'lucide-react';
+import { MapContainer, TileLayer, Marker, useMap, useMapEvents } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 import { api } from '../utils/api';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+
+const TASHKENT_CENTER = [41.2995, 69.2401];
+
+const branchIcon = L.divIcon({
+  html: `<div style="
+    width:28px;height:28px;border-radius:50%;
+    background:#2563eb;border:3px solid white;
+    box-shadow:0 2px 6px rgba(0,0,0,0.35);
+    display:flex;align-items:center;justify-content:center;
+    color:white;font-weight:700;font-size:14px;
+  ">🏢</div>`,
+  className: '',
+  iconSize: [28, 28],
+  iconAnchor: [14, 14],
+});
+
+function ClickHandler({ onPick }) {
+  useMapEvents({
+    click(e) {
+      onPick({ lat: e.latlng.lat, lng: e.latlng.lng });
+    },
+  });
+  return null;
+}
+
+function RecenterOnPoint({ point }) {
+  const map = useMap();
+  useEffect(() => {
+    if (point) map.setView([point.lat, point.lng], Math.max(map.getZoom(), 14));
+  }, [point, map]);
+  return null;
+}
+
+function LocationPicker({ value, onChange }) {
+  const initialCenter = value ? [value.lat, value.lng] : TASHKENT_CENTER;
+  return (
+    <div className="rounded-xl overflow-hidden border border-slate-200" style={{ height: 260 }}>
+      <MapContainer center={initialCenter} zoom={value ? 14 : 11} style={{ height: '100%', width: '100%' }}>
+        <TileLayer
+          attribution='&copy; OpenStreetMap'
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        />
+        <ClickHandler onPick={onChange} />
+        {value && (
+          <>
+            <Marker position={[value.lat, value.lng]} icon={branchIcon} />
+            <RecenterOnPoint point={value} />
+          </>
+        )}
+      </MapContainer>
+    </div>
+  );
+}
 
 const Branches = () => {
   const [branches, setBranches] = useState([]);
@@ -16,6 +72,7 @@ const Branches = () => {
     name: '',
     address: '',
     city: '',
+    location: null,
   });
 
   useEffect(() => {
@@ -41,7 +98,7 @@ const Branches = () => {
 
   const closeModal = () => {
     setShowModal(false);
-    setFormData({ name: '', address: '', city: '' });
+    setFormData({ name: '', address: '', city: '', location: null });
     setEditBranch(null);
   };
 
@@ -56,7 +113,7 @@ const Branches = () => {
       toast.success(editBranch ? 'Филиал обновлён' : 'Филиал создан');
       setEditBranch(null);
       setShowModal(false);
-      setFormData({ name: '', address: '', city: '' });
+      setFormData({ name: '', address: '', city: '', location: null });
       fetchBranches();
     } catch (error) {
       console.error('Error saving branch:', error);
@@ -154,6 +211,9 @@ const Branches = () => {
                         name: branch.name,
                         address: branch.address || '',
                         city: branch.city || '',
+                        location: branch.location && Number.isFinite(branch.location.lat) && Number.isFinite(branch.location.lng)
+                          ? { lat: branch.location.lat, lng: branch.location.lng }
+                          : null,
                       });
                       setEditBranch(branch);
                       setShowModal(true);
@@ -205,7 +265,7 @@ const Branches = () => {
           onClick={closeModal}
         >
           <div
-            className="bg-white rounded-2xl w-full max-w-md shadow-xl"
+            className="bg-white rounded-2xl w-full max-w-lg shadow-xl max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="p-6">
@@ -244,6 +304,31 @@ const Branches = () => {
                     className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                     value={formData.address}
                     onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-sm font-medium text-slate-700">
+                      Точка на карте
+                    </label>
+                    {formData.location && (
+                      <button
+                        type="button"
+                        onClick={() => setFormData({ ...formData, location: null })}
+                        className="flex items-center gap-1 text-xs text-slate-500 hover:text-red-600"
+                      >
+                        <X className="h-3 w-3" /> сбросить
+                      </button>
+                    )}
+                  </div>
+                  <p className="text-xs text-slate-400 mb-2">
+                    {formData.location
+                      ? `${formData.location.lat.toFixed(5)}, ${formData.location.lng.toFixed(5)}`
+                      : 'Кликните по карте, чтобы выбрать местоположение филиала'}
+                  </p>
+                  <LocationPicker
+                    value={formData.location}
+                    onChange={(loc) => setFormData({ ...formData, location: loc })}
                   />
                 </div>
                 <div className="flex gap-3 justify-end mt-2">
