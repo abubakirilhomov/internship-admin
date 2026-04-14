@@ -20,10 +20,10 @@ const Login = () => {
     setError('');
     setLoading(true);
 
-    const success = await login(name, lastName, password);
+    const result = await login(name, lastName, password);
 
-    if (!success) {
-      setError('Неверное имя, фамилия или пароль');
+    if (!result?.ok) {
+      setError(result?.error || 'Неверное имя, фамилия или пароль');
     }
 
     setLoading(false);
