@@ -299,6 +299,28 @@ export const api = {
     },
   },
   lessons: {
+    getStuckFeedbacks: async () => {
+      const response = await fetch(`${API_BASE_URL}/lessons/stuck-feedbacks`, {
+        headers: getAuthHeaders(),
+      });
+      if (!response.ok) throw new Error("Ошибка загрузки застрявших фидбеков");
+      return response.json();
+    },
+    forceCloseFeedback: async (lessonId, note = "") => {
+      const response = await fetch(
+        `${API_BASE_URL}/lessons/${lessonId}/force-feedback`,
+        {
+          method: "POST",
+          headers: getAuthHeaders(),
+          body: JSON.stringify({ note }),
+        }
+      );
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || "Ошибка при закрытии фидбека");
+      }
+      return response.json();
+    },
     getAttendanceStats: async (params = {}) => {
       if (params.period === "previousMonth") {
         const now = new Date();

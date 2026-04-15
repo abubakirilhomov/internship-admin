@@ -24,6 +24,7 @@ import GradeConfig from "./pages/GradeConfig";
 import Settings from "./pages/Settings";
 import LessonCriteria from "./pages/LessonCriteria";
 import MentorQuality from "./pages/MentorQuality";
+import StuckFeedbacks from "./pages/StuckFeedbacks";
 
 const Layout = ({ children }) => {
   return (
@@ -181,6 +182,16 @@ function App() {
                 <ProtectedRoute>
                   <Layout>
                     <MentorQuality />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/stuck-feedbacks"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <StuckFeedbacks />
                   </Layout>
                 </ProtectedRoute>
               }

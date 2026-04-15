@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Users, Building2, UserCheck, BarChart3, BarChart2, Home, LogOut, Scale, Clock, TrendingDown, Sliders, Settings, ListChecks, Award } from 'lucide-react';
+import { Users, Building2, UserCheck, BarChart3, BarChart2, Home, LogOut, Scale, Clock, TrendingDown, Sliders, Settings, ListChecks, Award, AlertTriangle } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
 const Sidebar = () => {
@@ -21,6 +21,7 @@ const Sidebar = () => {
     { name: 'Конфиг Грейдов', href: '/grade-config', icon: Sliders },
     { name: 'Критерии оценки', href: '/lesson-criteria', icon: ListChecks },
     { name: 'Качество менторов', href: '/mentor-quality', icon: Award },
+    { name: 'Застрявшие фидбеки', href: '/stuck-feedbacks', icon: AlertTriangle },
     { name: 'Настройки', href: '/settings', icon: Settings },
   ];
 
