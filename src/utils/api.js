@@ -1,7 +1,15 @@
 import { authFetch as fetch } from "./authFetch";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
-const user = JSON.parse(localStorage.getItem("user"));
+
+const getCurrentUser = () => {
+  try {
+    return JSON.parse(localStorage.getItem("user") || "null");
+  } catch {
+    return null;
+  }
+};
+
 const getAuthHeaders = () => {
   const token = localStorage.getItem("token");
   return {
@@ -16,14 +24,6 @@ export const api = {
   // Interns
   interns: {
     getAll: async () => {
-      const headers = {
-        ...getAuthHeaders(),
-        ...(user && {
-          "x-user-id": user._id,
-          "x-user-role": user.role,
-        }),
-      };
-
       const response = await fetch(`${API_BASE_URL}/interns`, {
         headers: getAuthHeaders(),
       });
