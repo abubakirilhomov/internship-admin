@@ -72,6 +72,7 @@ const Branches = () => {
     name: '',
     address: '',
     city: '',
+    telegramLink: '',
     location: null,
   });
 
@@ -98,7 +99,7 @@ const Branches = () => {
 
   const closeModal = () => {
     setShowModal(false);
-    setFormData({ name: '', address: '', city: '', location: null });
+    setFormData({ name: '', address: '', city: '', telegramLink: '', location: null });
     setEditBranch(null);
   };
 
@@ -113,7 +114,7 @@ const Branches = () => {
       toast.success(editBranch ? 'Филиал обновлён' : 'Филиал создан');
       setEditBranch(null);
       setShowModal(false);
-      setFormData({ name: '', address: '', city: '', location: null });
+      setFormData({ name: '', address: '', city: '', telegramLink: '', location: null });
       fetchBranches();
     } catch (error) {
       console.error('Error saving branch:', error);
@@ -211,6 +212,7 @@ const Branches = () => {
                         name: branch.name,
                         address: branch.address || '',
                         city: branch.city || '',
+                        telegramLink: branch.telegramLink || '',
                         location: branch.location && Number.isFinite(branch.location.lat) && Number.isFinite(branch.location.lng)
                           ? { lat: branch.location.lat, lng: branch.location.lng }
                           : null,
@@ -235,6 +237,19 @@ const Branches = () => {
 
             {branch.address && (
               <p className="text-sm text-slate-500 mt-3">{branch.address}</p>
+            )}
+
+            {branch.telegramLink && (
+              <a
+                href={branch.telegramLink.startsWith("@")
+                  ? `https://t.me/${branch.telegramLink.slice(1)}`
+                  : branch.telegramLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-xs text-blue-600 hover:underline mt-2"
+              >
+                Telegram группа
+              </a>
             )}
 
             <div className="flex gap-4 mt-3 pt-3 border-t border-slate-100">
@@ -304,6 +319,18 @@ const Branches = () => {
                     className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                     value={formData.address}
                     onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    Telegram ссылка
+                  </label>
+                  <input
+                    type="text"
+                    className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={formData.telegramLink}
+                    onChange={(e) => setFormData({ ...formData, telegramLink: e.target.value })}
+                    placeholder="https://t.me/+... или @channel_name"
                   />
                 </div>
                 <div>
