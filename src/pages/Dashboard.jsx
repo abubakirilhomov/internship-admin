@@ -1,6 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Building2, UserCheck, AlertTriangle, BookOpen, CheckCircle, Clock, TrendingUp } from 'lucide-react';
+import { Users, Building2, UserCheck, AlertTriangle, BookOpen, CheckCircle, Clock, TrendingUp, Download } from 'lucide-react';
+import { Bar, Doughnut, Line } from 'react-chartjs-2';
+import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, ArcElement, PointElement, LineElement, Title, Tooltip, Legend, Filler } from 'chart.js';
 import { api } from '../utils/api';
+
+ChartJS.register(CategoryScale, LinearScale, BarElement, ArcElement, PointElement, LineElement, Title, Tooltip, Legend, Filler);
 
 const GRADE_LABELS = {
   junior: 'Junior',
@@ -42,6 +46,7 @@ const Dashboard = () => {
   const [branches, setBranches] = useState([]);
   const [debtMentors, setDebtMentors] = useState([]);
   const [lessonStats, setLessonStats] = useState(null);
+  const [analytics, setAnalytics] = useState(null);
 
   useEffect(() => {
     const fetchAll = async () => {
@@ -53,12 +58,15 @@ const Dashboard = () => {
         const startDate = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
         const endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
 
-        const [internsData, mentorsData, branchesData, debtData, statsData] = await Promise.allSettled([
+        const [internsData, mentorsData, branchesData, debtData, statsData, analyticsData] = await Promise.allSettled([
           api.interns.getAll(),
           api.mentors.getAll(),
           api.branches.getAll(),
           api.mentors.getAllDebt(),
           api.lessons.getAttendanceStats({ startDate, endDate }),
+          fetch(`${import.meta.env.VITE_API_URL}/dashboard/analytics`, {
+            headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+          }).then(r => r.ok ? r.json() : null),
         ]);
 
         if (internsData.status === 'fulfilled') setInterns(Array.isArray(internsData.value) ? internsData.value : []);
@@ -66,6 +74,7 @@ const Dashboard = () => {
         if (branchesData.status === 'fulfilled') setBranches(Array.isArray(branchesData.value) ? branchesData.value : []);
         if (debtData.status === 'fulfilled') setDebtMentors(Array.isArray(debtData.value) ? debtData.value : []);
         if (statsData.status === 'fulfilled') setLessonStats(statsData.value);
+        if (analyticsData.status === 'fulfilled' && analyticsData.value) setAnalytics(analyticsData.value);
       } catch (err) {
         console.error('Dashboard fetch error:', err);
         setError('Ошибка загрузки данных');
@@ -254,6 +263,187 @@ const Dashboard = () => {
           )}
         </div>
       </div>
+
+      {/* ═══ ANALYTICS CHARTS ═══ */}
+      {analytics && (
+        <>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Monthly Lesson Trend */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <h3 className="text-base font-semibold text-gray-800 mb-4">Уроки по месяцам</h3>
+              <Bar
+                data={{
+                  labels: analytics.monthlyTrend.map(m => {
+                    const [y, mo] = m.month.split('-');
+                    return new Date(y, mo - 1).toLocaleString('ru-RU', { month: 'short' });
+                  }),
+                  datasets: [
+                    {
+                      label: 'Подтверждённые',
+                      data: analytics.monthlyTrend.map(m => m.confirmed),
+                      backgroundColor: 'rgba(34, 197, 94, 0.7)',
+                      borderRadius: 6,
+                    },
+                    {
+                      label: 'Ожидающие',
+                      data: analytics.monthlyTrend.map(m => m.pending),
+                      backgroundColor: 'rgba(234, 179, 8, 0.7)',
+                      borderRadius: 6,
+                    },
+                  ],
+                }}
+                options={{
+                  responsive: true,
+                  plugins: { legend: { position: 'bottom' } },
+                  scales: { y: { beginAtZero: true } },
+                }}
+              />
+            </div>
+
+            {/* Grade Distribution Pie */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <h3 className="text-base font-semibold text-gray-800 mb-4">Распределение грейдов</h3>
+              <div className="max-w-[280px] mx-auto">
+                <Doughnut
+                  data={{
+                    labels: analytics.gradeDistribution.map(g => GRADE_LABELS[g._id] || g._id),
+                    datasets: [{
+                      data: analytics.gradeDistribution.map(g => g.count),
+                      backgroundColor: ['#22c55e', '#3b82f6', '#eab308', '#f97316', '#ef4444'],
+                      borderWidth: 2,
+                      borderColor: '#fff',
+                    }],
+                  }}
+                  options={{ plugins: { legend: { position: 'bottom' } } }}
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Branch Comparison */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <h3 className="text-base font-semibold text-gray-800 mb-4">Филиалы — сравнение</h3>
+              <Bar
+                data={{
+                  labels: analytics.branchStats.map(b => b._id),
+                  datasets: [
+                    {
+                      label: 'Средний балл',
+                      data: analytics.branchStats.map(b => b.avgScore?.toFixed(1) || 0),
+                      backgroundColor: 'rgba(99, 102, 241, 0.7)',
+                      borderRadius: 6,
+                      yAxisID: 'y',
+                    },
+                    {
+                      label: 'Количество',
+                      data: analytics.branchStats.map(b => b.internCount),
+                      backgroundColor: 'rgba(168, 85, 247, 0.4)',
+                      borderRadius: 6,
+                      yAxisID: 'y1',
+                    },
+                  ],
+                }}
+                options={{
+                  responsive: true,
+                  plugins: { legend: { position: 'bottom' } },
+                  scales: {
+                    y: { type: 'linear', position: 'left', beginAtZero: true, title: { display: true, text: 'Балл' } },
+                    y1: { type: 'linear', position: 'right', beginAtZero: true, grid: { drawOnChartArea: false }, title: { display: true, text: 'Кол-во' } },
+                  },
+                }}
+              />
+            </div>
+
+            {/* Violation Trend */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <h3 className="text-base font-semibold text-gray-800 mb-4">Нарушения по месяцам</h3>
+              {analytics.violationTrend.length > 0 ? (
+                <Line
+                  data={{
+                    labels: analytics.violationTrend.map(v => {
+                      const [y, mo] = v.month.split('-');
+                      return new Date(y, mo - 1).toLocaleString('ru-RU', { month: 'short' });
+                    }),
+                    datasets: [{
+                      label: 'Нарушения',
+                      data: analytics.violationTrend.map(v => v.count),
+                      borderColor: '#ef4444',
+                      backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                      fill: true,
+                      tension: 0.4,
+                    }],
+                  }}
+                  options={{
+                    responsive: true,
+                    plugins: { legend: { display: false } },
+                    scales: { y: { beginAtZero: true } },
+                  }}
+                />
+              ) : (
+                <p className="text-sm text-gray-400 text-center py-8">Нет данных о нарушениях</p>
+              )}
+            </div>
+          </div>
+
+          {/* Top Interns + Export */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <h3 className="text-base font-semibold text-gray-800 mb-4">Топ-5 интернов</h3>
+              <div className="space-y-3">
+                {(analytics.topInterns || []).map((intern, i) => (
+                  <div key={intern._id} className="flex items-center gap-3">
+                    <span className="text-lg font-bold text-gray-400 w-6">#{i + 1}</span>
+                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center overflow-hidden flex-shrink-0">
+                      {intern.profilePhoto
+                        ? <img src={intern.profilePhoto} alt="" className="w-full h-full object-cover" />
+                        : <span className="text-xs font-bold">{intern.name?.[0]}</span>}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <span className="text-sm font-medium text-gray-900 truncate block">{intern.name} {intern.lastName}</span>
+                      <span className="text-xs text-gray-400">{GRADE_LABELS[intern.grade] || intern.grade}</span>
+                    </div>
+                    <span className="text-sm font-bold text-yellow-600">⭐ {intern.score?.toFixed(1)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Export */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 flex flex-col justify-center items-center gap-4">
+              <Download className="w-12 h-12 text-gray-300" />
+              <h3 className="text-base font-semibold text-gray-800">Экспорт данных</h3>
+              <p className="text-xs text-gray-400 text-center">Выгрузите данные по интернам, урокам и нарушениям в Excel</p>
+              <button
+                className="btn btn-primary btn-sm gap-2"
+                onClick={() => {
+                  const rows = interns.map(i => ({
+                    Имя: i.name,
+                    Фамилия: i.lastName,
+                    Username: i.username,
+                    Грейд: i.grade,
+                    Балл: i.score?.toFixed(1) || '0',
+                    Уроков: (i.lessonsVisited || []).reduce((s, l) => s + (l.count || 0), 0),
+                    Нарушений: (i.violations || []).length,
+                  }));
+                  const header = Object.keys(rows[0] || {}).join(',');
+                  const csv = [header, ...rows.map(r => Object.values(r).join(','))].join('\n');
+                  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `interns-export-${new Date().toISOString().slice(0,10)}.csv`;
+                  a.click();
+                  URL.revokeObjectURL(url);
+                }}
+              >
+                <Download className="w-4 h-4" />
+                Скачать CSV
+              </button>
+            </div>
+          </div>
+        </>
+      )}
 
       {/* Mentor debt table */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200">
