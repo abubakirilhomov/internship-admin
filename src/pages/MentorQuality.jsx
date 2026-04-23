@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
-import { ChevronDown, ChevronUp, AlertCircle, Star, ArrowUpDown } from "lucide-react";
+import { ChevronDown, ChevronUp, AlertCircle, Star, ArrowUpDown, Search, X } from "lucide-react";
 import { api } from "../utils/api";
 
 const qualityColor = (score) => {
@@ -120,6 +120,7 @@ const MentorQuality = () => {
   const [internsCache, setInternsCache] = useState({});
   const [loadingInterns, setLoadingInterns] = useState({});
   const [sortState, setSortState] = useState({ key: "averageActivity", dir: "desc" });
+  const [search, setSearch] = useState("");
 
   const fetchMentors = useCallback(async () => {
     setLoading(true);
@@ -166,7 +167,18 @@ const MentorQuality = () => {
   };
 
   const sortedMentors = useMemo(() => {
-    const arr = [...mentors];
+    const q = search.trim().toLowerCase();
+    const filtered = q
+      ? mentors.filter((m) => {
+          const fullName = `${m.name || ""} ${m.lastName || ""}`.toLowerCase();
+          const branchNames = (m.branches || [])
+            .map((b) => (b && (b.name || b)) || "")
+            .join(" ")
+            .toLowerCase();
+          return fullName.includes(q) || branchNames.includes(q);
+        })
+      : mentors;
+    const arr = [...filtered];
     const { key, dir } = sortState;
     const mul = dir === "desc" ? -1 : 1;
     arr.sort((a, b) => {
@@ -179,7 +191,7 @@ const MentorQuality = () => {
       return mul * (av - bv);
     });
     return arr;
-  }, [mentors, sortState]);
+  }, [mentors, sortState, search]);
 
   if (loading) {
     return (
@@ -197,6 +209,34 @@ const MentorQuality = () => {
         <p className="text-sm text-slate-500 mt-0.5">
           Кол-во интернов и их активность за последние 30 дней. Клик по строке — список интернов.
         </p>
+      </div>
+
+      <div className="mb-4 flex items-center gap-3">
+        <div className="relative flex-1 max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Поиск по имени или филиалу"
+            className="w-full pl-9 pr-9 py-2 rounded-xl border border-slate-200 bg-white text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition"
+          />
+          {search && (
+            <button
+              type="button"
+              onClick={() => setSearch("")}
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+              aria-label="Очистить поиск"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+        {search && (
+          <span className="text-xs text-slate-500">
+            Найдено: {sortedMentors.length}
+          </span>
+        )}
       </div>
 
       {error && (
