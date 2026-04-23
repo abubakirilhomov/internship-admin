@@ -264,6 +264,22 @@ export const api = {
       const json = await response.json();
       return json.data;
     },
+    getActivityList: async () => {
+      const response = await fetch(`${API_BASE_URL}/mentors/with-activity`, {
+        headers: getAuthHeaders(),
+      });
+      if (!response.ok) throw new Error("Ошибка загрузки активности менторов");
+      const json = await response.json();
+      return json.data;
+    },
+    getInternsActivity: async (id) => {
+      const response = await fetch(`${API_BASE_URL}/mentors/${id}/interns-activity`, {
+        headers: getAuthHeaders(),
+      });
+      if (!response.ok) throw new Error("Ошибка загрузки интернов ментора");
+      const json = await response.json();
+      return json.data;
+    },
   },
   rules: {
     getAll: async () => {
