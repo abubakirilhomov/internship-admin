@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { Plus, Trash2, AlertTriangle, Edit } from "lucide-react";
 import { api } from "../utils/api";
+import ViolationsTabs from "../components/Layout/ViolationsTabs";
 
 const Rules = () => {
   const [rules, setRules] = useState([]);
@@ -156,6 +157,7 @@ const Rules = () => {
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
+      <ViolationsTabs />
       {error && (
         <div className="alert alert-error mb-4 shadow-lg">
           <AlertTriangle className="h-5 w-5" />

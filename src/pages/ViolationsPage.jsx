@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { api } from "../utils/api";
 import { ShieldAlert, AlertTriangle, UserCircle } from "lucide-react";
+import ViolationsTabs from "../components/Layout/ViolationsTabs";
 
 const CATEGORY_META = {
   red:    { label: "Красные",  dot: "bg-red-500",    badge: "bg-red-100 text-red-700 border-red-200" },
@@ -159,6 +160,7 @@ const ViolationsPage = () => {
 
   return (
     <div className="p-6">
+      <ViolationsTabs />
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
         <div className="w-10 h-10 bg-red-100 rounded-xl flex items-center justify-center">

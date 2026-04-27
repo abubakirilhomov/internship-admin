@@ -1,36 +1,69 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Users, Building2, UserCheck, BarChart3, BarChart2, Home, LogOut, Scale, Clock, TrendingDown, Sliders, Settings, ListChecks, Award, AlertTriangle } from 'lucide-react';
+import {
+  Users, Building2, UserCheck, BarChart3, BarChart2, Home, LogOut,
+  Scale, Clock, TrendingDown, Sliders, Settings, ListChecks, Award,
+  AlertTriangle,
+} from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+
+const SECTIONS = [
+  {
+    title: 'Главное',
+    items: [
+      { name: 'Дашборд', href: '/dashboard', icon: Home },
+    ],
+  },
+  {
+    title: 'Сущности',
+    items: [
+      { name: 'Интерны', href: '/interns', icon: Users },
+      { name: 'Менторы', href: '/mentors', icon: UserCheck },
+      { name: 'Филиалы', href: '/branches', icon: Building2 },
+    ],
+  },
+  {
+    title: 'Аналитика',
+    items: [
+      { name: 'Рейтинг интернов', href: '/interns/rating', icon: BarChart3 },
+      { name: 'Качество менторов', href: '/mentor-quality', icon: Award },
+      { name: 'Посещаемость', href: '/attendance', icon: BarChart2 },
+    ],
+  },
+  {
+    title: 'Операции',
+    items: [
+      { name: 'Долги менторов', href: '/mentor-debt', icon: Clock },
+      { name: 'Низкая активность', href: '/interns/inactive', icon: TrendingDown },
+      { name: 'Застрявшие фидбеки', href: '/stuck-feedbacks', icon: AlertTriangle },
+    ],
+  },
+  {
+    title: 'Настройки',
+    items: [
+      { name: 'Нарушения', href: '/rules', icon: Scale, alsoMatch: ['/violations'] },
+      { name: 'Грейды', href: '/grade-config', icon: Sliders },
+      { name: 'Критерии оценки', href: '/lesson-criteria', icon: ListChecks },
+      { name: 'Настройки', href: '/settings', icon: Settings },
+    ],
+  },
+];
 
 const Sidebar = () => {
   const location = useLocation();
   const { logout, user } = useAuth();
 
-  const navigation = [
-    { name: 'Дашборд', href: '/dashboard', icon: Home },
-    { name: 'Интерны', href: '/interns', icon: Users },
-    { name: 'Менторы', href: '/mentors', icon: UserCheck },
-    { name: 'Филиалы', href: '/branches', icon: Building2 },
-    { name: 'Рейтинг Интернов', href: '/interns/rating', icon: BarChart3 },
-    { name: 'Долги Менторов', href: '/mentor-debt', icon: Clock },
-    { name: 'Низкая активность', href: '/interns/inactive', icon: TrendingDown },
-    { name: 'Правила и нарушения', href: '/rules', icon: Scale },
-    { name: 'Журнал нарушений', href: '/violations', icon: Scale },
-    { name: 'Посещаемость', href: '/attendance', icon: BarChart2 },
-    { name: 'Конфиг Грейдов', href: '/grade-config', icon: Sliders },
-    { name: 'Критерии оценки', href: '/lesson-criteria', icon: ListChecks },
-    { name: 'Качество менторов', href: '/mentor-quality', icon: Award },
-    { name: 'Застрявшие фидбеки', href: '/stuck-feedbacks', icon: AlertTriangle },
-    { name: 'Настройки', href: '/settings', icon: Settings },
-  ];
+  const isActive = (item) => {
+    if (location.pathname === item.href) return true;
+    return (item.alsoMatch || []).some((p) => location.pathname.startsWith(p));
+  };
 
   return (
     <div className="drawer-side">
       <label htmlFor="my-drawer-2" className="drawer-overlay"></label>
-      <aside className="w-64 min-h-full bg-base-200 text-base-content">
+      <aside className="w-64 min-h-full bg-base-200 text-base-content pb-20">
         <div className="p-4">
-          <div className="flex items-center gap-2 mb-8">
+          <div className="flex items-center gap-2 mb-6">
             <div className="avatar text-center placeholder">
               <div className="bg-primary text-primary-content rounded-full w-8">
                 <span className="text-xs">{user?.name?.charAt(0)}</span>
@@ -42,27 +75,34 @@ const Sidebar = () => {
             </div>
           </div>
 
-          <ul className="menu p-0 w-full">
-            {navigation.map((item) => {
-              const Icon = item.icon;
-              const isActive = location.pathname === item.href;
-
-              return (
-                <li key={item.name}>
-                  <Link
-                    to={item.href}
-                    className={`flex items-center gap-3 rounded-lg px-3 py-2 transition-colors ${isActive
-                      ? 'bg-primary text-primary-content'
-                      : 'hover:bg-base-300'
-                      }`}
-                  >
-                    <Icon className="h-5 w-5" />
-                    {item.name}
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
+          {SECTIONS.map((section) => (
+            <div key={section.title} className="mb-4">
+              <p className="text-[10px] font-semibold tracking-widest text-slate-400 uppercase px-3 mb-1">
+                {section.title}
+              </p>
+              <ul className="menu p-0 w-full">
+                {section.items.map((item) => {
+                  const Icon = item.icon;
+                  const active = isActive(item);
+                  return (
+                    <li key={item.name}>
+                      <Link
+                        to={item.href}
+                        className={`flex items-center gap-3 rounded-lg px-3 py-2 transition-colors ${
+                          active
+                            ? 'bg-primary text-primary-content'
+                            : 'hover:bg-base-300'
+                        }`}
+                      >
+                        <Icon className="h-5 w-5" />
+                        {item.name}
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          ))}
 
           <div className="absolute bottom-4 left-4 right-4">
             <button
