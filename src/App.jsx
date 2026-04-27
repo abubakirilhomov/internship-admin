@@ -25,6 +25,7 @@ import Settings from "./pages/Settings";
 import LessonCriteria from "./pages/LessonCriteria";
 import MentorQuality from "./pages/MentorQuality";
 import StuckFeedbacks from "./pages/StuckFeedbacks";
+import MarsIdReturn from "./pages/MarsIdReturn";
 
 const Layout = ({ children }) => {
   return (
@@ -46,6 +47,7 @@ function App() {
         <div data-theme="corporate" className="min-h-screen">
           <Routes>
             <Route path="/login" element={<Login />} />
+            <Route path="/auth/marsid/return" element={<MarsIdReturn />} />
             <Route
               path="/dashboard"
               element={

@@ -85,8 +85,26 @@ const login = async (name, lastName, password) => {
     setUser(null);
   };
 
+  // Save a session built externally (e.g. Mars ID OIDC return).
+  // Enforces admin-only role for this app.
+  const setSession = (data) => {
+    if (!data?.token || !data?.user) {
+      return { ok: false, error: 'Некорректный ответ авторизации' };
+    }
+    if (data.user.role !== 'admin') {
+      return { ok: false, error: 'Доступ только для администраторов' };
+    }
+    localStorage.setItem('token', data.token);
+    if (data.refreshToken) {
+      localStorage.setItem('refreshToken', data.refreshToken);
+    }
+    localStorage.setItem('user', JSON.stringify(data.user));
+    setUser(data.user);
+    return { ok: true };
+  };
+
   return (
-    <AuthContext.Provider value={{ user, login, logout, loading }}>
+    <AuthContext.Provider value={{ user, login, logout, loading, setSession }}>
       {children}
     </AuthContext.Provider>
   );
