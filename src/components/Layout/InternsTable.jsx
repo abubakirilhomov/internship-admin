@@ -51,6 +51,7 @@ const InternsTable = ({ interns: internsProp, onEdit, onDelete, onViolations, re
   const [sphereFilter, setSphereFilter] = useState("all");
   const [planFilter, setPlanFilter] = useState("all");
   const [selectedBranch, setSelectedBranch] = useState("all");
+  const [marsFilter, setMarsFilter] = useState("all"); // all | linked | unlinked
 
   // Row dropdown menu
   const [openMenu, setOpenMenu] = useState(null);
@@ -116,19 +117,24 @@ const InternsTable = ({ interns: internsProp, onEdit, onDelete, onViolations, re
         planFilter === "all" ||
         (planFilter === "blocked" && intern.isPlanBlocked) ||
         (planFilter === "active" && !intern.isPlanBlocked);
+      const byMars =
+        marsFilter === "all" ||
+        (marsFilter === "linked" && intern.marsId?.sub) ||
+        (marsFilter === "unlinked" && !intern.marsId?.sub);
       const bySearch =
         !q ||
         `${intern.name} ${intern.lastName}`.toLowerCase().includes(q) ||
         (intern.username || "").toLowerCase().includes(q) ||
         (intern.phoneNumber || "").toLowerCase().includes(q) ||
-        (intern.telegram || "").toLowerCase().includes(q);
-      return byBranch && bySphere && byPlan && bySearch;
+        (intern.telegram || "").toLowerCase().includes(q) ||
+        (intern.marsId?.handle || "").toLowerCase().includes(q);
+      return byBranch && bySphere && byPlan && byMars && bySearch;
     });
-  }, [interns, selectedBranch, searchTerm, sphereFilter, planFilter]);
+  }, [interns, selectedBranch, searchTerm, sphereFilter, planFilter, marsFilter]);
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, sphereFilter, planFilter, selectedBranch]);
+  }, [searchTerm, sphereFilter, planFilter, selectedBranch, marsFilter]);
 
   const totalPages = Math.ceil(filteredInterns.length / PAGE_SIZE);
   const paginatedInterns = filteredInterns.slice(
@@ -137,7 +143,10 @@ const InternsTable = ({ interns: internsProp, onEdit, onDelete, onViolations, re
   );
 
   const hasFilters =
-    searchTerm || sphereFilter !== "all" || planFilter !== "all" || selectedBranch !== "all";
+    searchTerm || sphereFilter !== "all" || planFilter !== "all" || selectedBranch !== "all" || marsFilter !== "all";
+
+  const internsLinkedCount = interns.filter((i) => i.marsId?.sub).length;
+  const internsUnlinkedCount = interns.length - internsLinkedCount;
 
   // ── Handlers ────────────────────────────────────────────────────────────────
   const handleOpenUpgradeModal = async (internId) => {
@@ -303,6 +312,14 @@ const InternsTable = ({ interns: internsProp, onEdit, onDelete, onViolations, re
                   ...branches.map((b) => [b._id, b.name]),
                 ],
               },
+              {
+                value: marsFilter, onChange: setMarsFilter,
+                options: [
+                  ["all", `Mars ID: все (${interns.length})`],
+                  ["linked", `С Mars ID (${internsLinkedCount})`],
+                  ["unlinked", `Без Mars ID (${internsUnlinkedCount})`],
+                ],
+              },
             ].map(({ value, onChange, options }, idx) => (
               <select
                 key={idx}
@@ -336,6 +353,7 @@ const InternsTable = ({ interns: internsProp, onEdit, onDelete, onViolations, re
                 setSphereFilter("all");
                 setPlanFilter("all");
                 setSelectedBranch("all");
+                setMarsFilter("all");
               }}
               className="text-xs text-blue-600 hover:underline"
             >
@@ -400,6 +418,14 @@ const InternsTable = ({ interns: internsProp, onEdit, onDelete, onViolations, re
                               <span className="font-semibold text-slate-900 text-sm whitespace-nowrap">
                                 {intern.name} {intern.lastName}
                               </span>
+                              {intern.marsId?.sub && (
+                                <span
+                                  className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-green-50 text-green-700 border border-green-200 whitespace-nowrap"
+                                  title={`Mars ID: ${intern.marsId.handle ? "@" + intern.marsId.handle : "привязан"}`}
+                                >
+                                  Mars ID
+                                </span>
+                              )}
                             </div>
                             <p className="text-xs text-slate-400">@{intern.username}</p>
                           </div>

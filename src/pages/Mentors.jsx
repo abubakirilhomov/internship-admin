@@ -419,6 +419,7 @@ const Mentors = () => {
   const [showResetConfirmModal, setShowResetConfirmModal] = useState(null);
   const [showPasswordModal, setShowPasswordModal] = useState(null); // { mentorName, tempPassword }
   const [searchTerm, setSearchTerm] = useState("");
+  const [marsFilter, setMarsFilter] = useState("all"); // all | linked | unlinked
   const [showCredentialsModal, setShowCredentialsModal] = useState(null); // { mentor, tempPassword? }
   const [credCopied, setCredCopied] = useState(false);
   const [credResetLoading, setCredResetLoading] = useState(false);
@@ -466,10 +467,19 @@ const Mentors = () => {
   };
 
   const filteredMentors = mentors.filter((m) => {
+    if (marsFilter === "linked" && !m.marsId?.sub) return false;
+    if (marsFilter === "unlinked" && m.marsId?.sub) return false;
     if (!searchTerm.trim()) return true;
     const q = searchTerm.trim().toLowerCase();
-    return m.name?.toLowerCase().includes(q) || m.lastName?.toLowerCase().includes(q);
+    return (
+      m.name?.toLowerCase().includes(q) ||
+      m.lastName?.toLowerCase().includes(q) ||
+      m.marsId?.handle?.toLowerCase().includes(q)
+    );
   });
+
+  const linkedCount = mentors.filter((m) => m.marsId?.sub).length;
+  const unlinkedCount = mentors.length - linkedCount;
 
   if (loading) {
     return (
@@ -498,18 +508,42 @@ const Mentors = () => {
         </button>
       </div>
 
-      {/* Search */}
-      <div className="mb-4 flex items-center gap-2 max-w-sm">
-        <input
-          type="text"
-          placeholder="Поиск по имени..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
-        {searchTerm && (
-          <button onClick={() => setSearchTerm("")} className="text-slate-400 hover:text-slate-600 text-sm px-2">✕</button>
-        )}
+      {/* Search + Mars ID filter */}
+      <div className="mb-4 flex flex-wrap items-center gap-3">
+        <div className="flex items-center gap-2 max-w-sm flex-1 min-w-[220px]">
+          <input
+            type="text"
+            placeholder="Поиск по имени или Mars ID handle..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          {searchTerm && (
+            <button onClick={() => setSearchTerm("")} className="text-slate-400 hover:text-slate-600 text-sm px-2">✕</button>
+          )}
+        </div>
+        <div className="flex items-center gap-1 text-xs">
+          <button
+            onClick={() => setMarsFilter("all")}
+            className={`px-2.5 py-1.5 rounded-lg border ${marsFilter === "all" ? "border-blue-400 bg-blue-50 text-blue-700" : "border-slate-200 text-slate-600 hover:bg-slate-50"}`}
+          >
+            Все ({mentors.length})
+          </button>
+          <button
+            onClick={() => setMarsFilter("linked")}
+            className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border ${marsFilter === "linked" ? "border-green-400 bg-green-50 text-green-700" : "border-slate-200 text-slate-600 hover:bg-slate-50"}`}
+          >
+            <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+            С Mars ID ({linkedCount})
+          </button>
+          <button
+            onClick={() => setMarsFilter("unlinked")}
+            className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border ${marsFilter === "unlinked" ? "border-amber-400 bg-amber-50 text-amber-700" : "border-slate-200 text-slate-600 hover:bg-slate-50"}`}
+          >
+            <span className="w-1.5 h-1.5 rounded-full bg-slate-300" />
+            Без Mars ID ({unlinkedCount})
+          </button>
+        </div>
       </div>
 
       {/* Table */}
@@ -522,6 +556,7 @@ const Mentors = () => {
                 <th className="text-left px-4 py-3 font-medium text-slate-500">Фамилия</th>
                 <th className="text-left px-4 py-3 font-medium text-slate-500">Филиал</th>
                 <th className="text-left px-4 py-3 font-medium text-slate-500">Роль</th>
+                <th className="text-left px-4 py-3 font-medium text-slate-500">Mars ID</th>
                 <th className="text-left px-4 py-3 font-medium text-slate-500">Дата</th>
                 <th className="text-left px-4 py-3 font-medium text-slate-500">Фото</th>
                 <th className="px-4 py-3" />
@@ -552,6 +587,22 @@ const Mentors = () => {
                     }`}>
                       {mentor.role}
                     </span>
+                  </td>
+                  <td className="px-4 py-3">
+                    {mentor.marsId?.sub ? (
+                      <span
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium bg-green-50 text-green-700 border border-green-200"
+                        title={`Привязан ${mentor.marsId.linkedAt ? new Date(mentor.marsId.linkedAt).toLocaleDateString("ru-RU") : ""}`}
+                      >
+                        <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                        {mentor.marsId.handle ? `@${mentor.marsId.handle}` : "привязан"}
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs text-slate-400 bg-slate-50 border border-slate-200">
+                        <span className="w-1.5 h-1.5 rounded-full bg-slate-300" />
+                        не привязан
+                      </span>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-slate-500">
                     {new Date(mentor.createdAt).toLocaleDateString("ru-RU")}
