@@ -12,6 +12,7 @@ import Header from "./components/Layout/Header";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Interns from "./pages/Interns";
+import InternsArchive from "./pages/InternsArchive";
 import Mentors from "./pages/Mentors";
 import Branches from "./pages/Branches";
 import InternsRating from "./pages/InternsRating";
@@ -74,6 +75,16 @@ function App() {
                 <ProtectedRoute>
                   <Layout>
                     <Interns />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/interns/archive"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <InternsArchive />
                   </Layout>
                 </ProtectedRoute>
               }

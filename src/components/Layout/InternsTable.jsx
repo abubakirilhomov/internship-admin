@@ -3,6 +3,7 @@ import {
   Trash2, Edit, ArrowUpCircle, History, Gift, Crown,
   Unlock, Lock, MoreVertical, AlertTriangle, X, Search, Download,
   KeyRound, Copy, Check, CheckCircle, RefreshCw,
+  Snowflake, Archive,
 } from "lucide-react";
 import { toast } from "react-toastify";
 import { api } from "../../utils/api";
@@ -77,6 +78,20 @@ const InternsTable = ({ interns: internsProp, onEdit, onDelete, onViolations, re
   const [showCredentials, setShowCredentials] = useState(null); // { intern, tempPassword? }
   const [credCopied, setCredCopied] = useState(false);
   const [resetLoading, setResetLoading] = useState(false);
+  // Freeze (заморозка) state
+  const [showFreezeModal, setShowFreezeModal] = useState(null);
+  const [freezeReason, setFreezeReason] = useState("sick");
+  const [freezeNote, setFreezeNote] = useState("");
+  const [freezeReturn, setFreezeReturn] = useState("");
+  const [freezeLoading, setFreezeLoading] = useState(false);
+  // Archive (архивация) state
+  const [showArchiveModal, setShowArchiveModal] = useState(null);
+  const [archiveReason, setArchiveReason] = useState("promoted_to_tutor");
+  const [archiveNote, setArchiveNote] = useState("");
+  const [archiveBecameTutor, setArchiveBecameTutor] = useState(true);
+  const [archiveTutorMentorId, setArchiveTutorMentorId] = useState("");
+  const [archiveLoading, setArchiveLoading] = useState(false);
+  const [statusFilter, setStatusFilter] = useState("all"); // all | active | frozen
 
   // Close dropdown on outside click or scroll
   useEffect(() => {
@@ -121,6 +136,11 @@ const InternsTable = ({ interns: internsProp, onEdit, onDelete, onViolations, re
         marsFilter === "all" ||
         (marsFilter === "linked" && intern.marsId?.sub) ||
         (marsFilter === "unlinked" && !intern.marsId?.sub);
+      const internStatus = intern.status || "active";
+      const byStatus =
+        statusFilter === "all" ||
+        (statusFilter === "active" && internStatus === "active") ||
+        (statusFilter === "frozen" && internStatus === "frozen");
       const bySearch =
         !q ||
         `${intern.name} ${intern.lastName}`.toLowerCase().includes(q) ||
@@ -128,13 +148,18 @@ const InternsTable = ({ interns: internsProp, onEdit, onDelete, onViolations, re
         (intern.phoneNumber || "").toLowerCase().includes(q) ||
         (intern.telegram || "").toLowerCase().includes(q) ||
         (intern.marsId?.handle || "").toLowerCase().includes(q);
-      return byBranch && bySphere && byPlan && byMars && bySearch;
+      return byBranch && bySphere && byPlan && byMars && byStatus && bySearch;
     });
-  }, [interns, selectedBranch, searchTerm, sphereFilter, planFilter, marsFilter]);
+  }, [interns, selectedBranch, searchTerm, sphereFilter, planFilter, marsFilter, statusFilter]);
+
+  const frozenCount = useMemo(
+    () => interns.filter((i) => (i.status || "active") === "frozen").length,
+    [interns]
+  );
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, sphereFilter, planFilter, selectedBranch, marsFilter]);
+  }, [searchTerm, sphereFilter, planFilter, selectedBranch, marsFilter, statusFilter]);
 
   const totalPages = Math.ceil(filteredInterns.length / PAGE_SIZE);
   const paginatedInterns = filteredInterns.slice(
@@ -143,7 +168,7 @@ const InternsTable = ({ interns: internsProp, onEdit, onDelete, onViolations, re
   );
 
   const hasFilters =
-    searchTerm || sphereFilter !== "all" || planFilter !== "all" || selectedBranch !== "all" || marsFilter !== "all";
+    searchTerm || sphereFilter !== "all" || planFilter !== "all" || selectedBranch !== "all" || marsFilter !== "all" || statusFilter !== "all";
 
   const internsLinkedCount = interns.filter((i) => i.marsId?.sub).length;
   const internsUnlinkedCount = interns.length - internsLinkedCount;
@@ -236,6 +261,62 @@ const InternsTable = ({ interns: internsProp, onEdit, onDelete, onViolations, re
     }
   };
 
+  const handleFreeze = async () => {
+    if (!showFreezeModal) return;
+    setFreezeLoading(true);
+    try {
+      await api.interns.freeze(showFreezeModal._id, {
+        reason: freezeReason,
+        note: freezeNote,
+        expectedReturn: freezeReturn || null,
+      });
+      toast.success("❄️ Стажёр заморожен");
+      setShowFreezeModal(null);
+      setFreezeNote("");
+      setFreezeReturn("");
+      setFreezeReason("sick");
+      refresh();
+    } catch (err) {
+      toast.error(err.message || "Ошибка при заморозке");
+    } finally {
+      setFreezeLoading(false);
+    }
+  };
+
+  const handleUnfreeze = async (intern) => {
+    try {
+      await api.interns.unfreeze(intern._id);
+      toast.success("☀️ Стажёр разморожен");
+      refresh();
+    } catch (err) {
+      toast.error(err.message || "Ошибка при разморозке");
+    }
+  };
+
+  const handleArchive = async () => {
+    if (!showArchiveModal) return;
+    setArchiveLoading(true);
+    try {
+      await api.interns.archive(showArchiveModal._id, {
+        reason: archiveReason,
+        note: archiveNote,
+        becameTutor: archiveBecameTutor,
+        tutorMentorId: archiveBecameTutor && archiveTutorMentorId ? archiveTutorMentorId : null,
+      });
+      toast.success("📦 Стажёр архивирован");
+      setShowArchiveModal(null);
+      setArchiveNote("");
+      setArchiveTutorMentorId("");
+      setArchiveBecameTutor(true);
+      setArchiveReason("promoted_to_tutor");
+      refresh();
+    } catch (err) {
+      toast.error(err.message || "Ошибка при архивации");
+    } finally {
+      setArchiveLoading(false);
+    }
+  };
+
   const exportToCSV = () => {
     const headers = ["Имя", "Фамилия", "Username", "Телефон", "Telegram", "Сфера", "Грейд", "Филиал", "Ментор", "Дата вступления"];
 
@@ -320,6 +401,14 @@ const InternsTable = ({ interns: internsProp, onEdit, onDelete, onViolations, re
                   ["unlinked", `Без Mars ID (${internsUnlinkedCount})`],
                 ],
               },
+              {
+                value: statusFilter, onChange: setStatusFilter,
+                options: [
+                  ["all", `Все (${interns.length})`],
+                  ["active", `Активные (${interns.length - frozenCount})`],
+                  ["frozen", `Замороженные (${frozenCount})`],
+                ],
+              },
             ].map(({ value, onChange, options }, idx) => (
               <select
                 key={idx}
@@ -354,6 +443,7 @@ const InternsTable = ({ interns: internsProp, onEdit, onDelete, onViolations, re
                 setPlanFilter("all");
                 setSelectedBranch("all");
                 setMarsFilter("all");
+                setStatusFilter("all");
               }}
               className="text-xs text-blue-600 hover:underline"
             >
@@ -487,7 +577,24 @@ const InternsTable = ({ interns: internsProp, onEdit, onDelete, onViolations, re
                       {/* Статус */}
                       <td className="px-4 py-3">
                         <div className="flex flex-col gap-1.5">
-                          {intern.isPlanBlocked ? (
+                          {intern.status === "frozen" ? (
+                            <>
+                              <span className="inline-flex items-center gap-1 text-xs font-medium text-sky-700 bg-sky-50 border border-sky-200 rounded-full px-2 py-0.5 w-fit whitespace-nowrap">
+                                <Snowflake className="w-3 h-3" /> Заморожен
+                              </span>
+                              {intern.freezeInfo?.expectedReturn && (
+                                <span className="text-[10px] text-slate-500 whitespace-nowrap">
+                                  до {new Date(intern.freezeInfo.expectedReturn).toLocaleDateString("ru-RU")}
+                                </span>
+                              )}
+                              <button
+                                onClick={() => handleUnfreeze(intern)}
+                                className="inline-flex items-center gap-1 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-2 py-0.5 w-fit hover:bg-amber-100 transition-colors whitespace-nowrap"
+                              >
+                                Разморозить
+                              </button>
+                            </>
+                          ) : intern.isPlanBlocked ? (
                             <span className="inline-flex items-center text-xs font-medium text-red-600 bg-red-50 border border-red-200 rounded-full px-2 py-0.5 w-fit whitespace-nowrap">
                               Заблокирован
                             </span>
@@ -496,14 +603,14 @@ const InternsTable = ({ interns: internsProp, onEdit, onDelete, onViolations, re
                               Активен
                             </span>
                           )}
-                          {intern.manualActivation?.isEnabled ? (
+                          {intern.status !== "frozen" && intern.manualActivation?.isEnabled ? (
                             <button
                               onClick={() => setShowActivationModal({ intern, enable: false })}
                               className="inline-flex items-center gap-1 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-2 py-0.5 w-fit hover:bg-amber-100 transition-colors whitespace-nowrap"
                             >
                               <Lock className="w-3 h-3" /> Деактивировать
                             </button>
-                          ) : intern.isPlanBlocked ? (
+                          ) : intern.status !== "frozen" && intern.isPlanBlocked ? (
                             <button
                               onClick={() => setShowActivationModal({ intern, enable: true })}
                               className="inline-flex items-center gap-1 text-xs font-medium text-green-700 bg-green-50 border border-green-200 rounded-full px-2 py-0.5 w-fit hover:bg-green-100 transition-colors whitespace-nowrap"
@@ -603,6 +710,28 @@ const InternsTable = ({ interns: internsProp, onEdit, onDelete, onViolations, re
                                     {icon} {label}
                                   </button>
                                 ))}
+                                <div className="my-1 border-t border-slate-100" />
+                                {intern.status === "frozen" ? (
+                                  <button
+                                    onClick={() => { handleUnfreeze(intern); setOpenMenu(null); }}
+                                    className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-amber-700 hover:bg-amber-50 transition-colors"
+                                  >
+                                    <Snowflake className="w-4 h-4" /> Разморозить
+                                  </button>
+                                ) : (
+                                  <button
+                                    onClick={() => { setShowFreezeModal(intern); setOpenMenu(null); }}
+                                    className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-sky-700 hover:bg-sky-50 transition-colors"
+                                  >
+                                    <Snowflake className="w-4 h-4" /> Заморозить
+                                  </button>
+                                )}
+                                <button
+                                  onClick={() => { setShowArchiveModal(intern); setOpenMenu(null); }}
+                                  className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-slate-700 hover:bg-slate-100 transition-colors"
+                                >
+                                  <Archive className="w-4 h-4 text-slate-500" /> Архивировать
+                                </button>
                                 <div className="my-1 border-t border-slate-100" />
                                 <button
                                   onClick={() => { setShowDeleteModal(intern._id); setOpenMenu(null); }}
@@ -1089,6 +1218,174 @@ const InternsTable = ({ interns: internsProp, onEdit, onDelete, onViolations, re
                 }`}
               >
                 {showActivationModal.enable ? "Активировать" : "Деактивировать"}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* ── Freeze Modal ─────────────────────────────────────────────────────── */}
+      {showFreezeModal && (
+        <Modal
+          onClose={() => { setShowFreezeModal(null); setFreezeNote(""); setFreezeReturn(""); }}
+        >
+          <div className="px-5 pt-5 pb-4 border-b border-slate-100">
+            <h3 className="font-bold text-lg text-slate-900 flex items-center gap-2">
+              <Snowflake className="w-5 h-5 text-sky-500" /> Заморозить аккаунт
+            </h3>
+            <p className="text-sm text-slate-500 mt-1">
+              {showFreezeModal.name} {showFreezeModal.lastName}
+            </p>
+          </div>
+          <div className="p-5 space-y-4">
+            <div className="bg-sky-50 border border-sky-200 rounded-xl p-3 text-xs text-sky-800">
+              Заморозка временно отключает план и уведомления. Длительность заморозки будет добавлена к испытательному сроку при возврате.
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Причина</label>
+              <select
+                value={freezeReason}
+                onChange={(e) => setFreezeReason(e.target.value)}
+                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-400"
+              >
+                <option value="sick">Болезнь</option>
+                <option value="vacation">Отпуск</option>
+                <option value="personal">Личные обстоятельства</option>
+                <option value="other">Другое</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">
+                Ожидаемая дата возвращения <span className="text-slate-400">(необязательно)</span>
+              </label>
+              <input
+                type="date"
+                value={freezeReturn}
+                onChange={(e) => setFreezeReturn(e.target.value)}
+                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-400"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Комментарий</label>
+              <textarea
+                value={freezeNote}
+                onChange={(e) => setFreezeNote(e.target.value)}
+                rows={3}
+                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-400"
+                placeholder="Например: справка от врача до 15 мая"
+              />
+            </div>
+            <div className="flex gap-2 pt-2">
+              <button
+                onClick={() => { setShowFreezeModal(null); setFreezeNote(""); setFreezeReturn(""); }}
+                className="flex-1 px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
+              >
+                Отмена
+              </button>
+              <button
+                onClick={handleFreeze}
+                disabled={freezeLoading}
+                className="flex-1 px-4 py-2.5 text-sm font-semibold text-white bg-sky-600 hover:bg-sky-700 rounded-xl transition-colors disabled:opacity-50"
+              >
+                {freezeLoading ? "..." : "Заморозить"}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* ── Archive Modal ────────────────────────────────────────────────────── */}
+      {showArchiveModal && (
+        <Modal
+          onClose={() => {
+            setShowArchiveModal(null);
+            setArchiveNote("");
+            setArchiveTutorMentorId("");
+          }}
+        >
+          <div className="px-5 pt-5 pb-4 border-b border-slate-100">
+            <h3 className="font-bold text-lg text-slate-900 flex items-center gap-2">
+              <Archive className="w-5 h-5 text-slate-500" /> Архивировать стажёра
+            </h3>
+            <p className="text-sm text-slate-500 mt-1">
+              {showArchiveModal.name} {showArchiveModal.lastName}
+            </p>
+          </div>
+          <div className="p-5 space-y-4">
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800">
+              Архивный стажёр исчезнет из всех активных списков и рейтингов. Все его данные сохраняются и доступны через раздел «Архив». Вход в клиент будет заблокирован.
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Причина</label>
+              <select
+                value={archiveReason}
+                onChange={(e) => {
+                  setArchiveReason(e.target.value);
+                  setArchiveBecameTutor(e.target.value === "promoted_to_tutor");
+                }}
+                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+              >
+                <option value="promoted_to_tutor">Стал тьютором</option>
+                <option value="left">Покинул программу</option>
+                <option value="other">Другое</option>
+              </select>
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="becameTutor"
+                checked={archiveBecameTutor}
+                onChange={(e) => setArchiveBecameTutor(e.target.checked)}
+                className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+              />
+              <label htmlFor="becameTutor" className="text-sm text-slate-700">
+                Стажёр стал тьютором (ментором)
+              </label>
+            </div>
+            {archiveBecameTutor && (
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">
+                  ID ментор-записи <span className="text-slate-400">(если уже создана)</span>
+                </label>
+                <input
+                  type="text"
+                  value={archiveTutorMentorId}
+                  onChange={(e) => setArchiveTutorMentorId(e.target.value.trim())}
+                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-slate-400"
+                  placeholder="ObjectId ментора, опционально"
+                />
+                <p className="mt-1 text-xs text-slate-400">
+                  Если запись Mentor для этого человека ещё не создана — оставьте пустым, привяжете позже.
+                </p>
+              </div>
+            )}
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Комментарий</label>
+              <textarea
+                value={archiveNote}
+                onChange={(e) => setArchiveNote(e.target.value)}
+                rows={3}
+                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+                placeholder="Например: повышен до Junior Mentor с 1 мая"
+              />
+            </div>
+            <div className="flex gap-2 pt-2">
+              <button
+                onClick={() => {
+                  setShowArchiveModal(null);
+                  setArchiveNote("");
+                  setArchiveTutorMentorId("");
+                }}
+                className="flex-1 px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
+              >
+                Отмена
+              </button>
+              <button
+                onClick={handleArchive}
+                disabled={archiveLoading}
+                className="flex-1 px-4 py-2.5 text-sm font-semibold text-white bg-slate-700 hover:bg-slate-800 rounded-xl transition-colors disabled:opacity-50"
+              >
+                {archiveLoading ? "..." : "Архивировать"}
               </button>
             </div>
           </div>

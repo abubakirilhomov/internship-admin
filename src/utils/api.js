@@ -158,6 +158,72 @@ export const api = {
       }
       return response.json();
     },
+    freeze: async (id, payload) => {
+      const response = await fetch(`${API_BASE_URL}/interns/${id}/freeze`, {
+        method: "PATCH",
+        headers: getAuthHeaders(),
+        body: JSON.stringify(payload || {}),
+      });
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || "Ошибка при заморозке");
+      }
+      return response.json();
+    },
+    unfreeze: async (id) => {
+      const response = await fetch(`${API_BASE_URL}/interns/${id}/unfreeze`, {
+        method: "PATCH",
+        headers: getAuthHeaders(),
+      });
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || "Ошибка при разморозке");
+      }
+      return response.json();
+    },
+    archive: async (id, payload) => {
+      const response = await fetch(`${API_BASE_URL}/interns/${id}/archive`, {
+        method: "PATCH",
+        headers: getAuthHeaders(),
+        body: JSON.stringify(payload || {}),
+      });
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || "Ошибка при архивации");
+      }
+      return response.json();
+    },
+    unarchive: async (id) => {
+      const response = await fetch(`${API_BASE_URL}/interns/${id}/unarchive`, {
+        method: "PATCH",
+        headers: getAuthHeaders(),
+      });
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || "Ошибка при разархивации");
+      }
+      return response.json();
+    },
+    getFrozen: async () => {
+      const response = await fetch(`${API_BASE_URL}/interns/frozen`, {
+        headers: getAuthHeaders(),
+      });
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || "Ошибка при загрузке списка замороженных");
+      }
+      return response.json();
+    },
+    getArchived: async () => {
+      const response = await fetch(`${API_BASE_URL}/interns/archived`, {
+        headers: getAuthHeaders(),
+      });
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || "Ошибка при загрузке архива");
+      }
+      return response.json();
+    },
   },
 
   // Branches
