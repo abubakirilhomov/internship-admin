@@ -3,6 +3,7 @@ import { Users, Building2, UserCheck, AlertTriangle, BookOpen, CheckCircle, Cloc
 import { Bar, Doughnut, Line } from 'react-chartjs-2';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, ArcElement, PointElement, LineElement, Title, Tooltip, Legend, Filler } from 'chart.js';
 import { api } from '../utils/api';
+import { authFetch } from '../utils/authFetch';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, ArcElement, PointElement, LineElement, Title, Tooltip, Legend, Filler);
 
@@ -64,9 +65,7 @@ const Dashboard = () => {
           api.branches.getAll(),
           api.mentors.getAllDebt(),
           api.lessons.getAttendanceStats({ startDate, endDate }),
-          fetch(`${import.meta.env.VITE_API_URL}/dashboard/analytics`, {
-            headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
-          }).then(r => r.ok ? r.json() : null),
+          authFetch(`/dashboard/analytics`).then(r => r.ok ? r.json() : null),
         ]);
 
         if (internsData.status === 'fulfilled') setInterns(Array.isArray(internsData.value) ? internsData.value : []);

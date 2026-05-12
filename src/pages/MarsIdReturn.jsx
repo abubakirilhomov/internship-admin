@@ -34,9 +34,10 @@ const MarsIdReturn = () => {
     if (fragment.token && fragment.user) {
       try {
         const parsedUser = JSON.parse(fragment.user);
+        // Refresh cookie was set on the API origin during the OIDC redirect;
+        // we only need access token + user payload here.
         const result = setSession({
           token: fragment.token,
-          refreshToken: fragment.refreshToken,
           user: parsedUser,
         });
         if (!result.ok) setError(result.error);

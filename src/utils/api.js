@@ -1,4 +1,4 @@
-import { authFetch as fetch } from "./authFetch";
+import { authFetch as fetch, getAuthToken } from "./authFetch";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
 
@@ -10,15 +10,12 @@ const getCurrentUser = () => {
   }
 };
 
-const getAuthHeaders = () => {
-  const token = localStorage.getItem("token");
-  return {
-    "Content-Type": "application/json",
-    ...(token && { Authorization: `Bearer ${token}` }),
-  };
-};
-
-const getAuthToken = () => localStorage.getItem("token");
+// authFetch injects Authorization on every call. Most callers pass only
+// Content-Type via this helper, so we keep it minimal — the Authorization
+// header is now applied centrally inside authFetch from the in-memory token.
+const getAuthHeaders = () => ({
+  "Content-Type": "application/json",
+});
 
 export const api = {
   // Interns
