@@ -33,15 +33,23 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     // Cold boot: try to mint an access token from the refresh cookie. If the
     // server says no, clear any cached user and land the admin on /login.
+    // Migration shim: pre-cutover sessions still have refreshToken in
+    // localStorage. Pass it as body fallback once; backend rotates to cookie
+    // and we clean up.
     let cancelled = false;
     (async () => {
+      const legacy = localStorage.getItem('refreshToken');
       try {
         const res = await fetch(`${apiUrl}/mentors/refresh-token`, {
           method: 'POST',
           credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
-          body: '{}',
+          body: JSON.stringify(legacy ? { refreshToken: legacy } : {}),
         });
+        if (legacy) {
+          localStorage.removeItem('refreshToken');
+          localStorage.removeItem('token');
+        }
         if (cancelled) return;
         if (res.ok) {
           const data = await res.json().catch(() => ({}));

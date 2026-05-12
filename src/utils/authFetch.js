@@ -29,19 +29,30 @@ const clearSessionAndRedirect = () => {
 };
 
 const refreshAccessToken = async () => {
+  // Migration shim: pre-cutover sessions still have refreshToken in
+  // localStorage. Pass as body fallback once; backend rotates to cookie.
+  const legacy = localStorage.getItem("refreshToken");
   try {
     const res = await fetch(`${API_BASE_URL}/mentors/refresh-token`, {
       method: "POST",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
-      body: "{}",
+      body: JSON.stringify(legacy ? { refreshToken: legacy } : {}),
     });
+    if (legacy) {
+      localStorage.removeItem("refreshToken");
+      localStorage.removeItem("token");
+    }
     if (!res.ok) return null;
     const data = await res.json();
     if (!data?.token) return null;
     accessToken = data.token;
     return data.token;
   } catch {
+    if (legacy) {
+      localStorage.removeItem("refreshToken");
+      localStorage.removeItem("token");
+    }
     return null;
   }
 };
