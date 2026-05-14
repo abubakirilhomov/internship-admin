@@ -239,6 +239,18 @@ const Branches = () => {
               <p className="text-sm text-slate-500 mt-3">{branch.address}</p>
             )}
 
+            {branch.location && Number.isFinite(branch.location.lat) && Number.isFinite(branch.location.lng) && (
+              <a
+                href={`https://yandex.com/maps/?ll=${branch.location.lng},${branch.location.lat}&z=17&pt=${branch.location.lng},${branch.location.lat}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-xs text-red-600 hover:underline mt-2"
+              >
+                <MapPin className="h-3 w-3" />
+                Открыть в Яндексе
+              </a>
+            )}
+
             {branch.telegramLink && (
               <a
                 href={branch.telegramLink.startsWith("@")
