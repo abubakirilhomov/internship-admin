@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import {
   Plus, Pencil, Trash2, User, Lock, Building, Shield,
   X, Check, Image, Eye, EyeOff, CheckCircle, Copy,
-  KeyRound, RefreshCw,
+  KeyRound, RefreshCw, MessageSquare,
 } from "lucide-react";
 import { api } from "../utils/api";
 
@@ -109,6 +109,7 @@ const MentorFormModal = ({ branches, editData, onClose, onSaved }) => {
       ? (editData.branches || []).map((b) => (typeof b === "object" ? b._id : b))
       : [],
     role: editData?.role || "mentor",
+    telegramChatId: editData?.telegramChatId || "",
   });
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
@@ -313,6 +314,21 @@ const MentorFormModal = ({ branches, editData, onClose, onSaved }) => {
                   </select>
                 </Field>
               </div>
+
+              <Field
+                label="Telegram Chat ID"
+                icon={MessageSquare}
+                hint="Для BM-уведомлений по заявкам (числовой ID Telegram)"
+              >
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={form.telegramChatId}
+                  onChange={(e) => set("telegramChatId", e.target.value)}
+                  placeholder="Напр. 1844909205"
+                  className={inputCls(false)}
+                />
+              </Field>
 
               <div className="flex justify-end gap-3 pt-2 border-t border-slate-100 mt-1">
                 <button

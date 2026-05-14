@@ -3,7 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import {
   Users, Building2, UserCheck, BarChart3, BarChart2, Home, LogOut,
   Scale, Clock, TrendingDown, Sliders, Settings, ListChecks, Award,
-  AlertTriangle, Archive,
+  AlertTriangle, Archive, Inbox,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -33,6 +33,7 @@ const SECTIONS = [
   {
     title: 'Операции',
     items: [
+      { name: 'Заявки', href: '/applications', icon: Inbox },
       { name: 'Долги менторов', href: '/mentor-debt', icon: Clock },
       { name: 'Низкая активность', href: '/interns/inactive', icon: TrendingDown },
       { name: 'Застрявшие фидбеки', href: '/stuck-feedbacks', icon: AlertTriangle },

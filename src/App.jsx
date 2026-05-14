@@ -26,6 +26,7 @@ import Settings from "./pages/Settings";
 import LessonCriteria from "./pages/LessonCriteria";
 import MentorQuality from "./pages/MentorQuality";
 import StuckFeedbacks from "./pages/StuckFeedbacks";
+import Applications from "./pages/Applications";
 import MarsIdReturn from "./pages/MarsIdReturn";
 
 const Layout = ({ children }) => {
@@ -205,6 +206,16 @@ function App() {
                 <ProtectedRoute>
                   <Layout>
                     <StuckFeedbacks />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/applications"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Applications />
                   </Layout>
                 </ProtectedRoute>
               }

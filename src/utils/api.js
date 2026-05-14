@@ -522,4 +522,51 @@ export const api = {
       return data.data;
     },
   },
+  applications: {
+    getAll: async (params = {}) => {
+      const qs = new URLSearchParams();
+      Object.entries(params).forEach(([k, v]) => {
+        if (v !== undefined && v !== null && v !== "") qs.append(k, v);
+      });
+      const q = qs.toString();
+      const response = await fetch(
+        `${API_BASE_URL}/applications${q ? `?${q}` : ""}`,
+        { headers: getAuthHeaders() }
+      );
+      if (!response.ok) throw new Error(await response.text());
+      return response.json();
+    },
+    getById: async (id) => {
+      const response = await fetch(`${API_BASE_URL}/applications/${id}`, {
+        headers: getAuthHeaders(),
+      });
+      if (!response.ok) throw new Error(await response.text());
+      return response.json();
+    },
+    updateStatus: async (id, data) => {
+      const response = await fetch(`${API_BASE_URL}/applications/${id}/status`, {
+        method: "PATCH",
+        headers: getAuthHeaders(),
+        body: JSON.stringify(data),
+      });
+      if (!response.ok) throw new Error(await response.text());
+      return response.json();
+    },
+    convert: async (id) => {
+      const response = await fetch(`${API_BASE_URL}/applications/${id}/convert`, {
+        method: "POST",
+        headers: getAuthHeaders(),
+      });
+      if (!response.ok) throw new Error(await response.text());
+      return response.json();
+    },
+    retryNotify: async (id) => {
+      const response = await fetch(
+        `${API_BASE_URL}/applications/${id}/retry-notify`,
+        { method: "POST", headers: getAuthHeaders() }
+      );
+      if (!response.ok) throw new Error(await response.text());
+      return response.json();
+    },
+  },
 };
