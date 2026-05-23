@@ -3,7 +3,7 @@ import {
   Trash2, Edit, ArrowUpCircle, History, Gift, Crown,
   Unlock, Lock, MoreVertical, AlertTriangle, X, Search, Download,
   KeyRound, Copy, Check, CheckCircle, RefreshCw,
-  Snowflake, Archive,
+  Snowflake, Archive, Zap, ShieldCheck, Flame,
 } from "lucide-react";
 import { toast } from "react-toastify";
 import { api } from "../../utils/api";
@@ -75,6 +75,9 @@ const InternsTable = ({ interns: internsProp, onEdit, onDelete, onViolations, re
   const [headInternBranch, setHeadInternBranch] = useState("");
   const [showActivationModal, setShowActivationModal] = useState(null);
   const [activationNote, setActivationNote] = useState("");
+  // Phase 2 weekly-plan admin clear-block
+  const [showClearBlockModal, setShowClearBlockModal] = useState(null); // intern
+  const [clearBlockLoading, setClearBlockLoading] = useState(false);
   const [showCredentials, setShowCredentials] = useState(null); // { intern, tempPassword? }
   const [credCopied, setCredCopied] = useState(false);
   const [resetLoading, setResetLoading] = useState(false);
@@ -290,6 +293,21 @@ const InternsTable = ({ interns: internsProp, onEdit, onDelete, onViolations, re
       refresh();
     } catch (err) {
       toast.error(err.message || "Ошибка при разморозке");
+    }
+  };
+
+  const handleClearBlock = async () => {
+    if (!showClearBlockModal) return;
+    setClearBlockLoading(true);
+    try {
+      await api.interns.clearWeeklyPlanBlock(showClearBlockModal._id);
+      toast.success("✅ Блок снят");
+      setShowClearBlockModal(null);
+      refresh();
+    } catch (err) {
+      toast.error(err.message || "Ошибка при снятии блока");
+    } finally {
+      setClearBlockLoading(false);
     }
   };
 
@@ -574,7 +592,9 @@ const InternsTable = ({ interns: internsProp, onEdit, onDelete, onViolations, re
                         </div>
                       </td>
 
-                      {/* Статус */}
+                      {/* Статус. Phase 2: weeklyPlan.status — единый источник
+                          правды для блокировки. Старый isPlanBlocked +
+                          manualActivation больше не enforced. */}
                       <td className="px-4 py-3">
                         <div className="flex flex-col gap-1.5">
                           {intern.status === "frozen" ? (
@@ -594,30 +614,67 @@ const InternsTable = ({ interns: internsProp, onEdit, onDelete, onViolations, re
                                 Разморозить
                               </button>
                             </>
-                          ) : intern.isPlanBlocked ? (
-                            <span className="inline-flex items-center text-xs font-medium text-red-600 bg-red-50 border border-red-200 rounded-full px-2 py-0.5 w-fit whitespace-nowrap">
-                              Заблокирован
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center text-xs font-medium text-green-600 bg-green-50 border border-green-200 rounded-full px-2 py-0.5 w-fit">
-                              Активен
-                            </span>
-                          )}
-                          {intern.status !== "frozen" && intern.manualActivation?.isEnabled ? (
-                            <button
-                              onClick={() => setShowActivationModal({ intern, enable: false })}
-                              className="inline-flex items-center gap-1 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-2 py-0.5 w-fit hover:bg-amber-100 transition-colors whitespace-nowrap"
-                            >
-                              <Lock className="w-3 h-3" /> Деактивировать
-                            </button>
-                          ) : intern.status !== "frozen" && intern.isPlanBlocked ? (
-                            <button
-                              onClick={() => setShowActivationModal({ intern, enable: true })}
-                              className="inline-flex items-center gap-1 text-xs font-medium text-green-700 bg-green-50 border border-green-200 rounded-full px-2 py-0.5 w-fit hover:bg-green-100 transition-colors whitespace-nowrap"
-                            >
-                              <Unlock className="w-3 h-3" /> Активировать
-                            </button>
-                          ) : null}
+                          ) : (() => {
+                            const wpStatus = intern.weeklyPlan?.status || "ok";
+                            const streak = intern.weeklyPlan?.streakWeeks || 0;
+                            const usedThisMonth = (intern.weeklyPlan?.selfActivations || [])
+                              .filter((a) => {
+                                const d = a.activatedAt ? new Date(a.activatedAt) : null;
+                                if (!d) return false;
+                                const now = new Date();
+                                return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+                              }).length;
+
+                            if (wpStatus === "admin_block") {
+                              return (
+                                <>
+                                  <span className="inline-flex items-center gap-1 text-xs font-medium text-red-600 bg-red-50 border border-red-200 rounded-full px-2 py-0.5 w-fit whitespace-nowrap">
+                                    <Lock className="w-3 h-3" /> Заблокирован
+                                  </span>
+                                  <span className="text-[10px] text-slate-500 whitespace-nowrap">
+                                    активаций: {usedThisMonth}/2
+                                  </span>
+                                  <button
+                                    onClick={() => setShowClearBlockModal(intern)}
+                                    className="inline-flex items-center gap-1 text-xs font-medium text-green-700 bg-green-50 border border-green-200 rounded-full px-2 py-0.5 w-fit hover:bg-green-100 transition-colors whitespace-nowrap"
+                                  >
+                                    <ShieldCheck className="w-3 h-3" /> Снять блок
+                                  </button>
+                                </>
+                              );
+                            }
+                            if (wpStatus === "restricted") {
+                              return (
+                                <>
+                                  <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-2 py-0.5 w-fit whitespace-nowrap">
+                                    <Zap className="w-3 h-3" /> Ограничен
+                                  </span>
+                                  <span className="text-[10px] text-slate-500 whitespace-nowrap">
+                                    активаций: {usedThisMonth}/2
+                                  </span>
+                                  <button
+                                    onClick={() => setShowClearBlockModal(intern)}
+                                    className="inline-flex items-center gap-1 text-xs font-medium text-green-700 bg-green-50 border border-green-200 rounded-full px-2 py-0.5 w-fit hover:bg-green-100 transition-colors whitespace-nowrap"
+                                  >
+                                    <ShieldCheck className="w-3 h-3" /> Снять блок
+                                  </button>
+                                </>
+                              );
+                            }
+                            // ok
+                            return (
+                              <>
+                                <span className="inline-flex items-center gap-1 text-xs font-medium text-green-600 bg-green-50 border border-green-200 rounded-full px-2 py-0.5 w-fit whitespace-nowrap">
+                                  Активен
+                                </span>
+                                {streak > 0 && (
+                                  <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-orange-700 bg-orange-50 border border-orange-200 rounded-full px-2 py-0.5 w-fit whitespace-nowrap" title={`Стрик: ${streak} нед. подряд на плане`}>
+                                    <Flame className="w-3 h-3" /> {streak} нед.
+                                  </span>
+                                )}
+                              </>
+                            );
+                          })()}
                         </div>
                       </td>
 
@@ -1288,6 +1345,55 @@ const InternsTable = ({ interns: internsProp, onEdit, onDelete, onViolations, re
                 className="flex-1 px-4 py-2.5 text-sm font-semibold text-white bg-sky-600 hover:bg-sky-700 rounded-xl transition-colors disabled:opacity-50"
               >
                 {freezeLoading ? "..." : "Заморозить"}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* ── Clear Weekly-Plan Block Modal ─────────────────────────────────────
+          Admin override: weeklyPlan.status (restricted | admin_block) → ok.
+          selfActivations counter NOT reset, streak stays at 0. */}
+      {showClearBlockModal && (
+        <Modal onClose={() => !clearBlockLoading && setShowClearBlockModal(null)}>
+          <div className="p-6">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
+                <ShieldCheck className="w-5 h-5 text-green-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-slate-900">Снять блок</h3>
+                <p className="text-xs text-slate-500">
+                  {showClearBlockModal.name} {showClearBlockModal.lastName}
+                </p>
+              </div>
+            </div>
+
+            <div className="rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-sm px-3 py-2 mb-3">
+              Текущий статус: <b>{showClearBlockModal.weeklyPlan?.status === "admin_block" ? "Заблокирован" : "Ограничен"}</b>.
+              Будет сброшен в <b>active (ok)</b>. Стажёр сможет добавлять уроки до следующей понедельничной проверки.
+            </div>
+
+            <ul className="text-xs text-slate-600 space-y-1 mb-5">
+              <li>• Счётчик самоактиваций за месяц <b>НЕ обнуляется</b> — если их уже 2 из 2, следующий fail-week сразу снова admin_block.</li>
+              <li>• Стрик недель <b>не восстанавливается</b> (остаётся 0).</li>
+              <li>• Следующая weekly-проверка — ближайший понедельник 00:30 Tashkent.</li>
+            </ul>
+
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowClearBlockModal(null)}
+                disabled={clearBlockLoading}
+                className="flex-1 px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-100 rounded-xl transition-colors disabled:opacity-50"
+              >
+                Отмена
+              </button>
+              <button
+                onClick={handleClearBlock}
+                disabled={clearBlockLoading}
+                className="flex-1 px-4 py-2.5 text-sm font-semibold text-white bg-green-600 hover:bg-green-700 rounded-xl transition-colors disabled:opacity-50"
+              >
+                {clearBlockLoading ? "..." : "Снять блок"}
               </button>
             </div>
           </div>

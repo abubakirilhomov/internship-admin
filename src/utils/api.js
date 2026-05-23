@@ -221,6 +221,20 @@ export const api = {
       }
       return response.json();
     },
+    // Phase 2 weekly-plan: snap status (restricted | admin_block) → ok.
+    // selfActivations counter is NOT reset (user pick on open question #4
+    // in vault/weekly-self-activation-plan.md). Streak stays at 0.
+    clearWeeklyPlanBlock: async (id) => {
+      const response = await fetch(`${API_BASE_URL}/interns/${id}/clear-block`, {
+        method: "PATCH",
+        headers: getAuthHeaders(),
+      });
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || "Ошибка при снятии блока");
+      }
+      return response.json();
+    },
   },
 
   // Branches
