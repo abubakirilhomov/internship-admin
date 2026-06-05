@@ -9,6 +9,8 @@ import {
   Send,
   UserPlus,
   AlertCircle,
+  CalendarPlus,
+  Plus,
 } from "lucide-react";
 import { toast, ToastContainer } from "react-toastify";
 import { api } from "../utils/api";
@@ -450,6 +452,168 @@ const ConvertModal = ({ application, onClose, onSaved }) => {
 
 // ── Applications page ───────────────────────────────────────────────────────
 
+const TRACKS = [
+  { value: "frontend-react", label: "Frontend (React)" },
+  { value: "backend-nodejs", label: "Backend (Node.js)" },
+];
+const sphereToTrack = (s) => (s === "backend-nodejs" ? "backend-nodejs" : "frontend-react");
+const toLocalInput = (d) => {
+  const dt = new Date(d);
+  return new Date(dt.getTime() - dt.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+};
+
+const fieldCls =
+  "w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:border-blue-400 bg-white";
+const labelCls = "text-xs font-medium text-slate-600 mb-1 block";
+
+// Запланировать собеседование для существующей заявки.
+function ScheduleModal({ application, onClose, onSaved }) {
+  const [when, setWhen] = useState(
+    application.interviewDate ? toLocalInput(application.interviewDate) : ""
+  );
+  const [track, setTrack] = useState(sphereToTrack(application.sphere));
+  const [saving, setSaving] = useState(false);
+
+  const submit = async () => {
+    if (!when) return toast.error("Укажите дату и время");
+    setSaving(true);
+    try {
+      await api.interviews.schedule({
+        applicationId: application._id,
+        scheduledAt: new Date(when).toISOString(),
+        track,
+      });
+      toast.success("Собеседование запланировано");
+      onSaved();
+      onClose();
+    } catch (e) {
+      toast.error(e.message || "Не удалось запланировать");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const name = `${application.firstName || ""} ${application.lastName || ""}`.trim();
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl w-full max-w-sm shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <div className="px-5 pt-5 pb-4 border-b border-slate-100 flex items-center justify-between">
+          <h2 className="text-base font-semibold text-slate-900">Запланировать собес</h2>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-100"><X className="w-4 h-4" /></button>
+        </div>
+        <div className="p-5 space-y-3">
+          <p className="text-sm text-slate-500">{name || "Кандидат"}</p>
+          <div>
+            <label className={labelCls}>Дата и время</label>
+            <input type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} className={fieldCls} />
+          </div>
+          <div>
+            <label className={labelCls}>Направление</label>
+            <select value={track} onChange={(e) => setTrack(e.target.value)} className={fieldCls}>
+              {TRACKS.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+            </select>
+          </div>
+          {application.cooldownUntil && new Date(application.cooldownUntil) > new Date() && (
+            <p className="text-xs text-orange-600">
+              Кулдаун до {new Date(application.cooldownUntil).toLocaleDateString("ru-RU")} — раньше нельзя.
+            </p>
+          )}
+        </div>
+        <div className="px-5 py-4 border-t border-slate-100 flex justify-end gap-2">
+          <button onClick={onClose} className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded-lg">Отмена</button>
+          <button onClick={submit} disabled={saving} className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg disabled:opacity-60">
+            {saving ? "Сохранение…" : "Запланировать"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Ручное добавление кандидата (пришёл напрямую в Telegram, не через форму).
+function CreateCandidateModal({ branches, mentors, onClose, onCreated }) {
+  const [form, setForm] = useState({
+    firstName: "", lastName: "", phone: "", parentPhone: "", telegramUsername: "",
+    age: "", branchId: "", mentorId: "", sphere: "frontend-react", shift: "morning",
+    schoolNumber: "", monthsAtMars: "",
+  });
+  const [saving, setSaving] = useState(false);
+  const set = (k, v) => setForm((p) => ({ ...p, [k]: v, ...(k === "branchId" ? { mentorId: "" } : {}) }));
+
+  const branchMentors = mentors.filter(
+    (m) => m.role === "mentor" && (m.branches || []).some((b) => String(b._id || b) === String(form.branchId))
+  );
+
+  const submit = async () => {
+    if (!form.firstName || !form.lastName) return toast.error("Имя и фамилия обязательны");
+    if (!form.branchId || !form.mentorId) return toast.error("Выберите филиал и ментора");
+    setSaving(true);
+    try {
+      await api.applications.adminCreate({
+        ...form,
+        age: form.age ? Number(form.age) : undefined,
+        monthsAtMars: form.monthsAtMars ? Number(form.monthsAtMars) : undefined,
+      });
+      toast.success("Кандидат добавлен");
+      onCreated();
+      onClose();
+    } catch (e) {
+      toast.error(e.message || "Не удалось добавить");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl w-full max-w-lg max-h-[90vh] flex flex-col shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <div className="px-5 pt-5 pb-4 border-b border-slate-100 flex items-center justify-between">
+          <h2 className="text-base font-semibold text-slate-900">Добавить кандидата</h2>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-100"><X className="w-4 h-4" /></button>
+        </div>
+        <div className="overflow-y-auto flex-1 p-5 grid grid-cols-2 gap-3">
+          <div><label className={labelCls}>Имя *</label><input value={form.firstName} onChange={(e) => set("firstName", e.target.value)} className={fieldCls} /></div>
+          <div><label className={labelCls}>Фамилия *</label><input value={form.lastName} onChange={(e) => set("lastName", e.target.value)} className={fieldCls} /></div>
+          <div><label className={labelCls}>Телефон ученика *</label><input value={form.phone} onChange={(e) => set("phone", e.target.value)} placeholder="+998..." className={fieldCls} /></div>
+          <div><label className={labelCls}>Телефон родителя</label><input value={form.parentPhone} onChange={(e) => set("parentPhone", e.target.value)} placeholder="+998..." className={fieldCls} /></div>
+          <div><label className={labelCls}>Telegram *</label><input value={form.telegramUsername} onChange={(e) => set("telegramUsername", e.target.value)} placeholder="username" className={fieldCls} /></div>
+          <div><label className={labelCls}>Возраст</label><input type="number" value={form.age} onChange={(e) => set("age", e.target.value)} className={fieldCls} /></div>
+          <div><label className={labelCls}>Филиал *</label>
+            <select value={form.branchId} onChange={(e) => set("branchId", e.target.value)} className={fieldCls}>
+              <option value="">—</option>
+              {branches.map((b) => <option key={b._id} value={b._id}>{b.name}</option>)}
+            </select>
+          </div>
+          <div><label className={labelCls}>Учитель/ментор *</label>
+            <select value={form.mentorId} onChange={(e) => set("mentorId", e.target.value)} className={fieldCls} disabled={!form.branchId}>
+              <option value="">{form.branchId ? "—" : "сначала филиал"}</option>
+              {branchMentors.map((m) => <option key={m._id} value={m._id}>{`${m.name || ""} ${m.lastName || ""}`.trim()}</option>)}
+            </select>
+          </div>
+          <div><label className={labelCls}>Направление</label>
+            <select value={form.sphere} onChange={(e) => set("sphere", e.target.value)} className={fieldCls}>
+              {Object.entries(SPHERE_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+            </select>
+          </div>
+          <div><label className={labelCls}>Смена</label>
+            <select value={form.shift} onChange={(e) => set("shift", e.target.value)} className={fieldCls}>
+              {Object.entries(SHIFT_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+            </select>
+          </div>
+          <div><label className={labelCls}>Школа №</label><input value={form.schoolNumber} onChange={(e) => set("schoolNumber", e.target.value)} className={fieldCls} /></div>
+          <div><label className={labelCls}>Месяцев в Mars</label><input type="number" value={form.monthsAtMars} onChange={(e) => set("monthsAtMars", e.target.value)} className={fieldCls} /></div>
+        </div>
+        <div className="px-5 py-4 border-t border-slate-100 flex justify-end gap-2">
+          <button onClick={onClose} className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded-lg">Отмена</button>
+          <button onClick={submit} disabled={saving} className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg disabled:opacity-60">
+            {saving ? "Сохранение…" : "Добавить"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const Applications = () => {
   const [items, setItems] = useState([]);
   const [total, setTotal] = useState(0);
@@ -466,6 +630,9 @@ const Applications = () => {
   const [statusModal, setStatusModal] = useState(null);
   const [convertModal, setConvertModal] = useState(null);
   const [retrying, setRetrying] = useState(null);
+  const [mentors, setMentors] = useState([]);
+  const [scheduleApp, setScheduleApp] = useState(null);
+  const [showCreate, setShowCreate] = useState(false);
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
@@ -498,8 +665,12 @@ const Applications = () => {
   useEffect(() => {
     (async () => {
       try {
-        const list = await api.branches.getAll();
+        const [list, mentorList] = await Promise.all([
+          api.branches.getAll(),
+          api.mentors.getAll().catch(() => []),
+        ]);
         setBranches(Array.isArray(list) ? list : []);
+        setMentors(Array.isArray(mentorList) ? mentorList : []);
       } catch (err) {
         toast.error(err.message || "Не удалось загрузить филиалы");
       }
@@ -560,14 +731,23 @@ const Applications = () => {
             стажёра.
           </p>
         </div>
-        <button
-          onClick={load}
-          disabled={loading}
-          className="flex items-center gap-2 px-3 py-2 text-sm font-medium bg-slate-100 text-slate-700 rounded-xl hover:bg-slate-200 disabled:opacity-50"
-        >
-          <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-          Обновить
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowCreate(true)}
+            className="flex items-center gap-2 px-3 py-2 text-sm font-medium bg-blue-600 text-white rounded-xl hover:bg-blue-700"
+          >
+            <Plus className="h-4 w-4" />
+            Добавить кандидата
+          </button>
+          <button
+            onClick={load}
+            disabled={loading}
+            className="flex items-center gap-2 px-3 py-2 text-sm font-medium bg-slate-100 text-slate-700 rounded-xl hover:bg-slate-200 disabled:opacity-50"
+          >
+            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+            Обновить
+          </button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -700,6 +880,7 @@ const Applications = () => {
                     a.status !== "duplicate" &&
                     !a.convertedToIntern;
                   const canRetry = a.telegramNotified === false;
+                  const canSchedule = !a.convertedToIntern;
                   return (
                     <tr key={a._id} className="border-t border-slate-100">
                       <td className="px-4 py-3 text-slate-500 text-xs whitespace-nowrap">
@@ -749,6 +930,16 @@ const Applications = () => {
                           >
                             Открыть
                           </button>
+                          {canSchedule && (
+                            <button
+                              onClick={() => setScheduleApp(a)}
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200"
+                              title="Запланировать собеседование"
+                            >
+                              <CalendarPlus className="w-3.5 h-3.5" />
+                              Собес
+                            </button>
+                          )}
                           {canConvert && (
                             <button
                               onClick={() => setConvertModal(a)}
@@ -818,6 +1009,23 @@ const Applications = () => {
           application={convertModal}
           onClose={() => setConvertModal(null)}
           onSaved={load}
+        />
+      )}
+
+      {scheduleApp && (
+        <ScheduleModal
+          application={scheduleApp}
+          onClose={() => setScheduleApp(null)}
+          onSaved={load}
+        />
+      )}
+
+      {showCreate && (
+        <CreateCandidateModal
+          branches={branches}
+          mentors={mentors}
+          onClose={() => setShowCreate(false)}
+          onCreated={load}
         />
       )}
 

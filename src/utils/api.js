@@ -582,5 +582,56 @@ export const api = {
       if (!response.ok) throw new Error(await response.text());
       return response.json();
     },
+    adminCreate: async (data) => {
+      const response = await fetch(`${API_BASE_URL}/applications/admin-create`, {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify(data),
+      });
+      if (!response.ok) throw new Error(await response.text());
+      return response.json();
+    },
+  },
+  interviews: {
+    getAll: async (params = {}) => {
+      const qs = new URLSearchParams();
+      Object.entries(params).forEach(([k, v]) => {
+        if (v !== undefined && v !== null && v !== "") qs.append(k, v);
+      });
+      const q = qs.toString();
+      const response = await fetch(
+        `${API_BASE_URL}/interviews${q ? `?${q}` : ""}`,
+        { headers: getAuthHeaders() }
+      );
+      if (!response.ok) throw new Error(await response.text());
+      return response.json();
+    },
+    schedule: async (data) => {
+      const response = await fetch(`${API_BASE_URL}/interviews/schedule`, {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify(data),
+      });
+      if (!response.ok) throw new Error(await response.text());
+      return response.json();
+    },
+    updateStatus: async (id, status) => {
+      const response = await fetch(`${API_BASE_URL}/interviews/${id}/status`, {
+        method: "PATCH",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ status }),
+      });
+      if (!response.ok) throw new Error(await response.text());
+      return response.json();
+    },
+    reschedule: async (id, scheduledAt) => {
+      const response = await fetch(`${API_BASE_URL}/interviews/${id}/reschedule`, {
+        method: "PATCH",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ scheduledAt }),
+      });
+      if (!response.ok) throw new Error(await response.text());
+      return response.json();
+    },
   },
 };
