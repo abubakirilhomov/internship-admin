@@ -109,6 +109,7 @@ const MentorFormModal = ({ branches, editData, onClose, onSaved }) => {
       ? (editData.branches || []).map((b) => (typeof b === "object" ? b._id : b))
       : [],
     role: editData?.role || "mentor",
+    isAdmin: editData?.isAdmin || false,
     telegramChatId: editData?.telegramChatId || "",
   });
   const [errors, setErrors] = useState({});
@@ -314,6 +315,21 @@ const MentorFormModal = ({ branches, editData, onClose, onSaved }) => {
                   </select>
                 </Field>
               </div>
+
+              <label className="flex items-start gap-2.5 mb-4 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={form.isAdmin}
+                  onChange={(e) => set("isAdmin", e.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded border-slate-300 text-purple-600 focus:ring-purple-500"
+                />
+                <span className="text-sm">
+                  <span className="font-medium text-slate-700">Админ-доступ</span>
+                  <span className="block text-xs text-slate-400">
+                    Доступ к админ-панели. Не зависит от роли — ментор может оставаться выбираемым у стажёров и при этом быть админом.
+                  </span>
+                </span>
+              </label>
 
               <Field
                 label="Telegram Chat ID"
@@ -603,6 +619,11 @@ const Mentors = () => {
                     }`}>
                       {mentor.role}
                     </span>
+                    {mentor.isAdmin && mentor.role !== "admin" && (
+                      <span className="ml-1 px-2 py-0.5 rounded-md text-xs font-medium bg-purple-100 text-purple-700">
+                        admin
+                      </span>
+                    )}
                   </td>
                   <td className="px-4 py-3">
                     {mentor.marsId?.sub ? (

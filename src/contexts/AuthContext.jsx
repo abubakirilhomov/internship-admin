@@ -15,12 +15,16 @@ export const useAuth = () => {
 // Access token lives only in module state (via setAuthToken) + this provider's
 // closure. Refresh token rides the httpOnly cookie set by the server. We keep
 // `user` in localStorage for snappy boot UX — it's not a credential.
+// Админ-доступ ортогонален к роли: канонический признак — флаг isAdmin.
+// role === 'admin' поддерживается как легаси (чистые админ-аккаунты).
+const isAdminUser = (u) => !!(u && (u.isAdmin === true || u.role === 'admin'));
+
 const readCachedUser = () => {
   try {
     const raw = localStorage.getItem('user');
     if (!raw) return null;
     const parsed = JSON.parse(raw);
-    return parsed?.role === 'admin' ? parsed : null;
+    return isAdminUser(parsed) ? parsed : null;
   } catch {
     return null;
   }
@@ -100,7 +104,7 @@ export const AuthProvider = ({ children }) => {
         return { ok: false, error: data.message || 'Ошибка авторизации' };
       }
 
-      if (data.user?.role !== 'admin') {
+      if (!isAdminUser(data.user)) {
         return { ok: false, error: 'Доступ только для администраторов' };
       }
 
@@ -135,7 +139,7 @@ export const AuthProvider = ({ children }) => {
     if (!data?.token || !data?.user) {
       return { ok: false, error: 'Некорректный ответ авторизации' };
     }
-    if (data.user.role !== 'admin') {
+    if (!isAdminUser(data.user)) {
       return { ok: false, error: 'Доступ только для администраторов' };
     }
     setAuthToken(data.token);

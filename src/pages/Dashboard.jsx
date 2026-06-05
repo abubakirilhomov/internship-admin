@@ -152,7 +152,7 @@ const Dashboard = () => {
         <StatCard
           title="Менторы"
           value={mentors.length}
-          subtitle={`${mentors.filter((m) => m.role === 'admin').length} администраторов`}
+          subtitle={`${mentors.filter((m) => m.isAdmin || m.role === 'admin').length} администраторов`}
           icon={UserCheck}
           iconBg="bg-purple-100"
           valueColor="text-purple-700"
