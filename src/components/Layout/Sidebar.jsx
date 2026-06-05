@@ -47,6 +47,7 @@ const SECTIONS = [
       { name: 'Нарушения', href: '/rules', icon: Scale, alsoMatch: ['/violations'] },
       { name: 'Грейды', href: '/grade-config', icon: Sliders },
       { name: 'Критерии оценки', href: '/lesson-criteria', icon: ListChecks },
+      { name: 'Банк вопросов', href: '/interview-bank', icon: ListChecks },
       { name: 'Настройки', href: '/settings', icon: Settings },
     ],
   },

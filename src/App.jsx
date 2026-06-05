@@ -28,6 +28,7 @@ import MentorQuality from "./pages/MentorQuality";
 import StuckFeedbacks from "./pages/StuckFeedbacks";
 import Applications from "./pages/Applications";
 import Interviews from "./pages/Interviews";
+import InterviewBank from "./pages/InterviewBank";
 import MarsIdReturn from "./pages/MarsIdReturn";
 
 const Layout = ({ children }) => {
@@ -227,6 +228,16 @@ function App() {
                 <ProtectedRoute>
                   <Layout>
                     <Interviews />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/interview-bank"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <InterviewBank />
                   </Layout>
                 </ProtectedRoute>
               }

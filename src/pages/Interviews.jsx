@@ -3,7 +3,7 @@ import { api } from "../utils/api";
 import { toast, ToastContainer } from "react-toastify";
 import {
   CalendarPlus, Clock, Phone, RefreshCw, UserX, X, Search,
-  CheckCircle, Ban, CalendarClock,
+  ClipboardCheck, Ban, CalendarClock, Copy, Check,
 } from "lucide-react";
 
 const TRACKS = [
@@ -75,12 +75,192 @@ function RescheduleModal({ interview, onClose, onSaved }) {
   );
 }
 
+const MARK_CYCLE = ["none", "pass", "partial", "fail"];
+const MARK_META = {
+  none: { label: "—", cls: "bg-slate-100 text-slate-400" },
+  pass: { label: "✓", cls: "bg-green-500 text-white" },
+  partial: { label: "½", cls: "bg-amber-400 text-white" },
+  fail: { label: "✗", cls: "bg-red-500 text-white" },
+};
+const CATS = [
+  { value: "html-css", label: "HTML / CSS" },
+  { value: "javascript", label: "JavaScript" },
+  { value: "react", label: "React" },
+  { value: "practical", label: "Практика / ТЗ" },
+];
+// Превью %/вердикта на клиенте (источник истины — сервер при сохранении).
+const PARTIAL = 0.5;
+const THRESHOLD = 80;
+
+function ScoringModal({ interview, onClose, onSaved }) {
+  const [topics, setTopics] = useState([]);
+  const [loadingT, setLoadingT] = useState(true);
+  const [marks, setMarks] = useState({});
+  const [phase, setPhase] = useState("grading");
+  const [result, setResult] = useState(null);
+  const [letter, setLetter] = useState(null);
+  const [lang, setLang] = useState("ru");
+  const [copied, setCopied] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const data = await api.interviewTopics.getAll({ track: interview.track });
+        setTopics(Array.isArray(data) ? data : []);
+      } catch (e) {
+        toast.error(e.message || "Не удалось загрузить темы");
+      } finally {
+        setLoadingT(false);
+      }
+    })();
+  }, [interview.track]);
+
+  const setMark = (id) =>
+    setMarks((m) => {
+      const cur = m[id] || "none";
+      return { ...m, [id]: MARK_CYCLE[(MARK_CYCLE.indexOf(cur) + 1) % MARK_CYCLE.length] };
+    });
+
+  let earned = 0, total = 0;
+  for (const t of topics) {
+    const r = marks[t._id] || "none";
+    if (r === "none") continue;
+    const w = Number(t.weight) || 1;
+    total += w;
+    if (r === "pass") earned += w;
+    else if (r === "partial") earned += w * PARTIAL;
+  }
+  earned = Math.round(earned * 100) / 100;
+  const pct = total > 0 ? Math.round((earned / total) * 1000) / 10 : 0;
+  const livePass = pct >= THRESHOLD;
+
+  const save = async () => {
+    const items = topics
+      .filter((t) => (marks[t._id] || "none") !== "none")
+      .map((t) => ({ topicId: t._id, result: marks[t._id] }));
+    if (items.length === 0) return toast.error("Отметьте хотя бы одну тему");
+    setSaving(true);
+    try {
+      const res = await api.interviews.score(interview._id, items);
+      setResult(res.interview);
+      setLetter(res.letter);
+      setPhase("result");
+      onSaved();
+    } catch (e) {
+      toast.error(e.message || "Ошибка сохранения");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(letter?.[lang] || "");
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      toast.error("Не удалось скопировать");
+    }
+  };
+
+  const a = interview.application || {};
+  const name = `${a.firstName || ""} ${a.lastName || ""}`.trim() || "Кандидат";
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl w-full max-w-lg max-h-[92vh] flex flex-col shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <div className="px-5 pt-5 pb-3 border-b border-slate-100 flex items-center justify-between">
+          <div>
+            <h2 className="text-base font-semibold text-slate-900">{phase === "grading" ? "Оценка собеседования" : "Результат"}</h2>
+            <p className="text-xs text-slate-400">{name} · {TRACK_LABEL[interview.track] || interview.track}</p>
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-100"><X className="w-4 h-4" /></button>
+        </div>
+
+        {phase === "grading" ? (
+          <>
+            <div className="overflow-y-auto flex-1 p-5 space-y-4">
+              {loadingT ? (
+                <p className="text-sm text-slate-400 text-center py-8">Загрузка тем…</p>
+              ) : topics.length === 0 ? (
+                <p className="text-sm text-slate-400 text-center py-8">Банк пуст для этого направления. Засей банк или добавь темы.</p>
+              ) : (
+                CATS.map((c) => {
+                  const list = topics.filter((t) => t.category === c.value);
+                  if (!list.length) return null;
+                  return (
+                    <div key={c.value}>
+                      <p className="text-xs font-semibold text-slate-500 uppercase mb-1.5">{c.label}</p>
+                      <div className="space-y-1">
+                        {list.map((t) => {
+                          const r = marks[t._id] || "none";
+                          const meta = MARK_META[r];
+                          return (
+                            <div key={t._id} className="flex items-center gap-2">
+                              <button onClick={() => setMark(t._id)} className={`w-7 h-7 rounded-lg text-sm font-bold flex-shrink-0 ${meta.cls}`} title="Клик: — → ✓ → ½ → ✗">{meta.label}</button>
+                              <span className="text-sm text-slate-700 flex-1">{t.label}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+            <div className="px-5 py-3 border-t border-slate-100">
+              <div className="flex items-center justify-between mb-2 text-sm">
+                <span className="text-slate-500">Балл: {earned}/{total}</span>
+                <span className={`font-semibold ${livePass ? "text-green-600" : "text-slate-700"}`}>
+                  {pct}%{total > 0 ? (livePass ? " · проходит" : ` · нужно ≥${THRESHOLD}%`) : ""}
+                </span>
+              </div>
+              <div className="flex justify-end gap-2">
+                <button onClick={onClose} className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded-lg">Отмена</button>
+                <button onClick={save} disabled={saving} className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg disabled:opacity-60">
+                  {saving ? "Сохранение…" : "Сохранить результат"}
+                </button>
+              </div>
+            </div>
+          </>
+        ) : (
+          <div className="overflow-y-auto flex-1 p-5 space-y-4">
+            <div className={`rounded-xl p-4 text-center ${result?.passed ? "bg-green-50" : "bg-red-50"}`}>
+              <p className={`text-3xl font-bold ${result?.passed ? "text-green-600" : "text-red-500"}`}>{result?.percentage}%</p>
+              <p className="text-sm text-slate-600 mt-1">{result?.scoreEarned}/{result?.scoreTotal} · {result?.passed ? "Прошёл ✅" : "Не прошёл ❌"}</p>
+            </div>
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs font-semibold text-slate-500 uppercase">Письмо кандидату</p>
+                <div className="flex items-center gap-1">
+                  {["ru", "uz"].map((l) => (
+                    <button key={l} onClick={() => setLang(l)} className={`px-2 py-0.5 rounded text-xs font-medium ${lang === l ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-500"}`}>{l.toUpperCase()}</button>
+                  ))}
+                  <button onClick={copy} className="ml-1 inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-600 hover:bg-slate-200">
+                    {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />} {copied ? "Скопировано" : "Копировать"}
+                  </button>
+                </div>
+              </div>
+              <textarea readOnly value={letter?.[lang] || ""} rows={10} className="w-full text-sm p-3 rounded-lg border border-slate-200 bg-slate-50 resize-none" />
+            </div>
+            <div className="flex justify-end">
+              <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg">Готово</button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function InterviewCard({ iv, onChanged }) {
   const a = iv.application || {};
   const name = `${a.firstName || ""} ${a.lastName || ""}`.trim() || "—";
   const teacher = a.mentor ? `${a.mentor.name || ""} ${a.mentor.lastName || ""}`.trim() : "";
   const [busy, setBusy] = useState(false);
   const [showReschedule, setShowReschedule] = useState(false);
+  const [showScoring, setShowScoring] = useState(false);
 
   const setStatus = async (status) => {
     setBusy(true);
@@ -136,9 +316,9 @@ function InterviewCard({ iv, onChanged }) {
           className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs text-slate-600 hover:bg-slate-100 rounded-lg disabled:opacity-50">
           <RefreshCw className="w-3.5 h-3.5" /> Перенести
         </button>
-        <button onClick={() => setStatus("completed")} disabled={busy}
-          className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs text-green-700 hover:bg-green-50 rounded-lg disabled:opacity-50">
-          <CheckCircle className="w-3.5 h-3.5" /> Проведён
+        <button onClick={() => setShowScoring(true)} disabled={busy}
+          className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-green-700 bg-green-50 hover:bg-green-100 rounded-lg disabled:opacity-50">
+          <ClipboardCheck className="w-3.5 h-3.5" /> Оценить
         </button>
         <button onClick={() => setStatus("no_show")} disabled={busy}
           className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs text-orange-700 hover:bg-orange-50 rounded-lg disabled:opacity-50">
@@ -155,6 +335,14 @@ function InterviewCard({ iv, onChanged }) {
           interview={iv}
           onClose={() => setShowReschedule(false)}
           onSaved={() => { setShowReschedule(false); onChanged(); }}
+        />
+      )}
+
+      {showScoring && (
+        <ScoringModal
+          interview={iv}
+          onClose={() => setShowScoring(false)}
+          onSaved={onChanged}
         />
       )}
     </div>

@@ -633,5 +633,55 @@ export const api = {
       if (!response.ok) throw new Error(await response.text());
       return response.json();
     },
+    score: async (id, items) => {
+      const response = await fetch(`${API_BASE_URL}/interviews/${id}/score`, {
+        method: "PATCH",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ items }),
+      });
+      if (!response.ok) throw new Error(await response.text());
+      return response.json();
+    },
+  },
+  interviewTopics: {
+    getAll: async (params = {}) => {
+      const qs = new URLSearchParams();
+      Object.entries(params).forEach(([k, v]) => {
+        if (v !== undefined && v !== null && v !== "") qs.append(k, v);
+      });
+      const q = qs.toString();
+      const response = await fetch(
+        `${API_BASE_URL}/interview-topics${q ? `?${q}` : ""}`,
+        { headers: getAuthHeaders() }
+      );
+      if (!response.ok) throw new Error(await response.text());
+      return response.json();
+    },
+    create: async (data) => {
+      const response = await fetch(`${API_BASE_URL}/interview-topics`, {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify(data),
+      });
+      if (!response.ok) throw new Error(await response.text());
+      return response.json();
+    },
+    update: async (id, data) => {
+      const response = await fetch(`${API_BASE_URL}/interview-topics/${id}`, {
+        method: "PATCH",
+        headers: getAuthHeaders(),
+        body: JSON.stringify(data),
+      });
+      if (!response.ok) throw new Error(await response.text());
+      return response.json();
+    },
+    remove: async (id) => {
+      const response = await fetch(`${API_BASE_URL}/interview-topics/${id}`, {
+        method: "DELETE",
+        headers: getAuthHeaders(),
+      });
+      if (!response.ok) throw new Error(await response.text());
+      return response.json();
+    },
   },
 };
