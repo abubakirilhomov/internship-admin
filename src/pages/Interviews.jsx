@@ -102,6 +102,9 @@ function ScoringModal({ interview, onClose, onSaved }) {
   const [lang, setLang] = useState("ru");
   const [copied, setCopied] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [account, setAccount] = useState(null);
+  const [accCopied, setAccCopied] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -159,6 +162,32 @@ function ScoringModal({ interview, onClose, onSaved }) {
       await navigator.clipboard.writeText(letter?.[lang] || "");
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
+    } catch {
+      toast.error("Не удалось скопировать");
+    }
+  };
+
+  // Фаза 3: создать аккаунт интерна из прошедшей заявки (reuse convert).
+  const createAccount = async () => {
+    const appId = result?.application?._id;
+    if (!appId) return toast.error("Нет заявки кандидата");
+    setCreating(true);
+    try {
+      const r = await api.applications.convert(appId);
+      setAccount({ username: r.intern?.username || "", tempPassword: r.tempPassword || "" });
+      toast.success("Аккаунт создан");
+      onSaved();
+    } catch (e) {
+      toast.error(e.message || "Не удалось создать аккаунт");
+    } finally {
+      setCreating(false);
+    }
+  };
+  const copyAccount = async () => {
+    try {
+      await navigator.clipboard.writeText(`Логин: ${account.username}\nПароль: ${account.tempPassword}`);
+      setAccCopied(true);
+      setTimeout(() => setAccCopied(false), 1500);
     } catch {
       toast.error("Не удалось скопировать");
     }
@@ -230,6 +259,25 @@ function ScoringModal({ interview, onClose, onSaved }) {
               <p className={`text-3xl font-bold ${result?.passed ? "text-green-600" : "text-red-500"}`}>{result?.percentage}%</p>
               <p className="text-sm text-slate-600 mt-1">{result?.scoreEarned}/{result?.scoreTotal} · {result?.passed ? "Прошёл ✅" : "Не прошёл ❌"}</p>
             </div>
+
+            {result?.passed && (
+              account ? (
+                <div className="rounded-xl bg-green-50 border border-green-200 p-4 space-y-1.5">
+                  <p className="text-sm font-semibold text-green-800">Аккаунт интерна создан ✅</p>
+                  <p className="text-sm"><span className="text-slate-500">Логин:</span> <code className="font-mono">{account.username}</code></p>
+                  <p className="text-sm"><span className="text-slate-500">Пароль:</span> <code className="font-mono">{account.tempPassword}</code></p>
+                  <button onClick={copyAccount} className="mt-1 inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium bg-white border border-green-200 text-green-700 hover:bg-green-50">
+                    {accCopied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />} {accCopied ? "Скопировано" : "Скопировать"}
+                  </button>
+                  <p className="text-xs text-slate-400">Пароль показывается один раз — передай кандидату.</p>
+                </div>
+              ) : (
+                <button onClick={createAccount} disabled={creating} className="w-full px-4 py-2.5 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-lg disabled:opacity-60">
+                  {creating ? "Создание…" : "Создать аккаунт интерна"}
+                </button>
+              )
+            )}
+
             <div>
               <div className="flex items-center justify-between mb-2">
                 <p className="text-xs font-semibold text-slate-500 uppercase">Письмо кандидату</p>
