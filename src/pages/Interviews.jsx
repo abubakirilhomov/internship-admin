@@ -3,7 +3,7 @@ import { api } from "../utils/api";
 import { toast, ToastContainer } from "react-toastify";
 import {
   CalendarPlus, Clock, Phone, RefreshCw, UserX, X, Search,
-  ClipboardCheck, Ban, CalendarClock, Copy, Check,
+  ClipboardCheck, Ban, CalendarClock, Copy, Check, FileText,
 } from "lucide-react";
 
 const TRACKS = [
@@ -412,17 +412,129 @@ const Section = ({ title, icon: Icon, accent, items, onChanged }) => {
   );
 };
 
+// Письмо-результат по уже оценённому собесу (RU/UZ + копировать).
+function LetterModal({ interviewId, candidate, onClose }) {
+  const [letter, setLetter] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [lang, setLang] = useState("ru");
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const data = await api.interviews.letter(interviewId);
+        setLetter(data.letter);
+      } catch (e) {
+        toast.error(e.message || "Не удалось получить письмо");
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [interviewId]);
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(letter?.[lang] || "");
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      toast.error("Не удалось скопировать");
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl w-full max-w-lg shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <div className="px-5 pt-5 pb-3 border-b border-slate-100 flex items-center justify-between">
+          <h2 className="text-base font-semibold text-slate-900">Письмо · {candidate}</h2>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-100"><X className="w-4 h-4" /></button>
+        </div>
+        <div className="p-5">
+          {loading ? (
+            <p className="text-sm text-slate-400 text-center py-8">Загрузка…</p>
+          ) : (
+            <>
+              <div className="flex items-center justify-end gap-1 mb-2">
+                {["ru", "uz"].map((l) => (
+                  <button key={l} onClick={() => setLang(l)} className={`px-2 py-0.5 rounded text-xs font-medium ${lang === l ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-500"}`}>{l.toUpperCase()}</button>
+                ))}
+                <button onClick={copy} className="ml-1 inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-600 hover:bg-slate-200">
+                  {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />} {copied ? "Скопировано" : "Копировать"}
+                </button>
+              </div>
+              <textarea readOnly value={letter?.[lang] || ""} rows={10} className="w-full text-sm p-3 rounded-lg border border-slate-200 bg-slate-50 resize-none" />
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ResultCard({ iv }) {
+  const a = iv.application || {};
+  const name = `${a.firstName || ""} ${a.lastName || ""}`.trim() || "—";
+  const teacher = a.mentor ? `${a.mentor.name || ""} ${a.mentor.lastName || ""}`.trim() : "";
+  const when = iv.conductedAt
+    ? new Date(iv.conductedAt).toLocaleDateString("ru-RU", { day: "2-digit", month: "short", year: "numeric" })
+    : "—";
+  const [showLetter, setShowLetter] = useState(false);
+  const passed = iv.passed;
+
+  return (
+    <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="font-medium text-slate-900 truncate">
+            {name}{a.age ? <span className="text-slate-400 font-normal">, {a.age} лет</span> : null}
+          </p>
+          <div className="mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-slate-500">
+            <span className="px-1.5 py-0.5 rounded bg-blue-50 text-blue-700">{TRACK_LABEL[iv.track] || iv.track}</span>
+            <span>{when}</span>
+            {teacher && <span>Учитель: {teacher}</span>}
+            {iv.attemptNumber > 1 && <span className="text-amber-600">попытка {iv.attemptNumber}</span>}
+          </div>
+        </div>
+        <div className={`text-right flex-shrink-0 ${passed ? "text-green-600" : "text-red-500"}`}>
+          <div className="text-xl font-bold leading-none">{iv.percentage}%</div>
+          <div className="text-[11px] mt-0.5">{iv.scoreEarned}/{iv.scoreTotal} · {passed ? "прошёл" : "не прошёл"}</div>
+        </div>
+      </div>
+
+      {Array.isArray(iv.roadmap) && iv.roadmap.length > 0 && (
+        <div className="mt-2 text-xs text-slate-500">
+          <span className="font-medium text-slate-600">Темы на повтор:</span> {iv.roadmap.join(", ")}
+        </div>
+      )}
+
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <button onClick={() => setShowLetter(true)} className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg">
+          <FileText className="w-3.5 h-3.5" /> Письмо
+        </button>
+        {passed && a.convertedToIntern && (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-700">✓ аккаунт создан</span>
+        )}
+        {passed && !a.convertedToIntern && (
+          <span className="text-xs text-amber-600">аккаунт не создан</span>
+        )}
+      </div>
+
+      {showLetter && <LetterModal interviewId={iv._id} candidate={name} onClose={() => setShowLetter(false)} />}
+    </div>
+  );
+}
+
 export default function Interviews() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [track, setTrack] = useState("");
   const [q, setQ] = useState("");
+  const [mode, setMode] = useState("scheduled"); // scheduled | completed
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      // Доска — только актуальные (scheduled), прошлые/будущие; разложим по секциям.
-      const data = await api.interviews.getAll({ status: "scheduled", track, q });
+      const data = await api.interviews.getAll({ status: mode, track, q });
       setItems(Array.isArray(data?.items) ? data.items : []);
     } catch (e) {
       toast.error(e.message || "Не удалось загрузить");
@@ -430,7 +542,7 @@ export default function Interviews() {
     } finally {
       setLoading(false);
     }
-  }, [track, q]);
+  }, [track, q, mode]);
 
   useEffect(() => {
     const t = setTimeout(load, 250);
@@ -445,6 +557,9 @@ export default function Interviews() {
     return t >= today0 && t <= today1;
   });
   const upcoming = items.filter((i) => new Date(i.scheduledAt).getTime() > today1);
+  const completedSorted = [...items].sort(
+    (a, b) => new Date(b.conductedAt || b.updatedAt || 0) - new Date(a.conductedAt || a.updatedAt || 0)
+  );
 
   return (
     <div className="p-4 md:p-6 max-w-5xl mx-auto">
@@ -452,8 +567,21 @@ export default function Interviews() {
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Собеседования</h1>
           <p className="text-sm text-slate-500 mt-0.5">
-            Запланированные собесы. Планируются со страницы «Заявки».
+            {mode === "scheduled"
+              ? "Запланированные собесы. Планируются со страницы «Заявки»."
+              : "Проведённые собеседования — результаты и история."}
           </p>
+        </div>
+        <div className="inline-flex rounded-xl bg-slate-100 p-1 self-start">
+          {[["scheduled", "Запланированные"], ["completed", "Проведённые"]].map(([v, l]) => (
+            <button
+              key={v}
+              onClick={() => setMode(v)}
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${mode === v ? "bg-white text-slate-900 shadow" : "text-slate-500 hover:text-slate-700"}`}
+            >
+              {l}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -484,14 +612,18 @@ export default function Interviews() {
       ) : items.length === 0 ? (
         <div className="text-center py-16 text-slate-400">
           <CalendarClock className="w-10 h-10 mx-auto mb-3 opacity-40" />
-          <p className="text-sm">Нет запланированных собеседований.</p>
+          <p className="text-sm">{mode === "scheduled" ? "Нет запланированных собеседований." : "Проведённых собеседований пока нет."}</p>
         </div>
-      ) : (
+      ) : mode === "scheduled" ? (
         <>
           <Section title="Просрочено" icon={CalendarClock} accent="text-red-600" items={overdue} onChanged={load} />
           <Section title="Сегодня" icon={Clock} accent="text-purple-700" items={today} onChanged={load} />
           <Section title="Скоро" icon={CalendarPlus} accent="text-slate-600" items={upcoming} onChanged={load} />
         </>
+      ) : (
+        <div className="grid gap-3 md:grid-cols-2">
+          {completedSorted.map((iv) => <ResultCard key={iv._id} iv={iv} />)}
+        </div>
       )}
 
       <ToastContainer position="top-right" />

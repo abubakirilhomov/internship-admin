@@ -642,6 +642,13 @@ export const api = {
       if (!response.ok) throw new Error(await response.text());
       return response.json();
     },
+    letter: async (id) => {
+      const response = await fetch(`${API_BASE_URL}/interviews/${id}/letter`, {
+        headers: getAuthHeaders(),
+      });
+      if (!response.ok) throw new Error(await response.text());
+      return response.json();
+    },
   },
   interviewTopics: {
     getAll: async (params = {}) => {
