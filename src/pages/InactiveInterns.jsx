@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { AlertTriangle, TrendingDown, Users, RefreshCw, ChevronUp, ChevronDown } from "lucide-react";
+import { AlertTriangle, TrendingDown, Users, RefreshCw, ChevronUp, ChevronDown, Send } from "lucide-react";
 import { api } from "../utils/api";
 
 const GRADE_LABELS = {
@@ -35,6 +35,30 @@ const InactiveInterns = () => {
   const [period, setPeriod] = useState("month");
   const [sortField, setSortField] = useState("percentage");
   const [sortDir, setSortDir] = useState("asc");
+  const [sendingDigest, setSendingDigest] = useState(false);
+  const [digestMsg, setDigestMsg] = useState(null);
+
+  const sendDigest = async () => {
+    setSendingDigest(true);
+    setDigestMsg(null);
+    try {
+      const r = await api.interns.runInactivityDigest();
+      if (r?.skipped) {
+        setDigestMsg({ ok: false, text: r.reason || "Дайджест пропущен" });
+      } else {
+        setDigestMsg({
+          ok: true,
+          text: `Отправлено в Telegram: ${r.inactiveCount} неактивных (доставлено ${r.sent}${
+            r.failed ? `, ошибок ${r.failed}` : ""
+          })`,
+        });
+      }
+    } catch (e) {
+      setDigestMsg({ ok: false, text: e.message });
+    } finally {
+      setSendingDigest(false);
+    }
+  };
 
   const fetchData = async () => {
     setLoading(true);
@@ -140,14 +164,38 @@ const InactiveInterns = () => {
           <h1 className="text-xl font-bold text-slate-900">Низкая активность</h1>
           <p className="text-sm text-slate-500">Интерны, которые редко добавляют уроки</p>
         </div>
-        <button
-          onClick={fetchData}
-          className="ml-auto p-2 rounded-xl hover:bg-slate-100 text-slate-500 transition-colors"
-          title="Обновить"
-        >
-          <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
-        </button>
+        <div className="ml-auto flex items-center gap-2">
+          <button
+            onClick={sendDigest}
+            disabled={sendingDigest}
+            className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-60 transition-colors"
+            title="Отправить список неактивных в Telegram"
+          >
+            <Send className={`w-4 h-4 ${sendingDigest ? "animate-pulse" : ""}`} />
+            {sendingDigest ? "Отправка…" : "Дайджест в Telegram"}
+          </button>
+          <button
+            onClick={fetchData}
+            className="p-2 rounded-xl hover:bg-slate-100 text-slate-500 transition-colors"
+            title="Обновить"
+          >
+            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+          </button>
+        </div>
       </div>
+
+      {digestMsg && (
+        <div
+          className={`mb-4 rounded-xl px-4 py-2.5 text-sm border ${
+            digestMsg.ok
+              ? "bg-green-50 border-green-200 text-green-700"
+              : "bg-red-50 border-red-200 text-red-600"
+          }`}
+        >
+          {digestMsg.ok ? "✅ " : "⚠️ "}
+          {digestMsg.text}
+        </div>
+      )}
 
       {/* Filters */}
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 mb-5 flex flex-wrap gap-3 items-center">

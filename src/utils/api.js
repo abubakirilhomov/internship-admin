@@ -103,6 +103,17 @@ export const api = {
       }
       return response.json();
     },
+    runInactivityDigest: async () => {
+      const response = await fetch(`${API_BASE_URL}/interns/inactivity-digest/run`, {
+        method: "POST",
+        headers: getAuthHeaders(),
+      });
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || "Не удалось отправить дайджест");
+      }
+      return response.json();
+    },
     rate: async (id, rating) => {
       const response = await fetch(`${API_BASE_URL}/interns/${id}/rate`, {
         method: "POST",
