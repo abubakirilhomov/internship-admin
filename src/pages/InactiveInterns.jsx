@@ -44,7 +44,11 @@ const InactiveInterns = () => {
         api.lessons.getAttendanceStats({ period }),
         api.branches.getAll(),
       ]);
-      setStats(Array.isArray(statsData) ? statsData : statsData?.data || []);
+      setStats(
+        Array.isArray(statsData)
+          ? statsData
+          : statsData?.stats || statsData?.data || []
+      );
       setBranches(Array.isArray(branchesData) ? branchesData : branchesData?.data || []);
     } catch (err) {
       setError(err.message);
