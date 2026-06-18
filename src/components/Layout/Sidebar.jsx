@@ -3,7 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import {
   Users, Building2, UserCheck, BarChart3, BarChart2, Home, LogOut,
   Scale, Clock, TrendingDown, Sliders, Settings, ListChecks, Award,
-  AlertTriangle, Archive, Inbox, CalendarCheck,
+  AlertTriangle, Archive, Inbox, CalendarCheck, UserPlus,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -34,6 +34,7 @@ const SECTIONS = [
     title: 'Операции',
     items: [
       { name: 'Заявки', href: '/applications', icon: Inbox },
+      { name: 'Заявки на интернов', href: '/intern-requests', icon: UserPlus },
       { name: 'Собеседования', href: '/interviews', icon: CalendarCheck },
       { name: 'Долги менторов', href: '/mentor-debt', icon: Clock },
       { name: 'Низкая активность', href: '/interns/inactive', icon: TrendingDown },

@@ -702,4 +702,56 @@ export const api = {
       return response.json();
     },
   },
+
+  // Intern creation requests submitted by head interns
+  internRequests: {
+    getAll: async (status = "pending") => {
+      const response = await fetch(
+        `${API_BASE_URL}/intern-requests?status=${encodeURIComponent(status)}`,
+        { headers: getAuthHeaders() }
+      );
+      if (!response.ok) throw new Error("Ошибка загрузки заявок");
+      return response.json();
+    },
+    approve: async (id, fields) => {
+      const response = await fetch(
+        `${API_BASE_URL}/intern-requests/${id}/approve`,
+        {
+          method: "PATCH",
+          headers: getAuthHeaders(),
+          body: JSON.stringify(fields || {}),
+        }
+      );
+      if (!response.ok) {
+        let msg = "Ошибка при одобрении заявки";
+        try {
+          msg = (await response.json()).message || msg;
+        } catch {
+          /* keep default */
+        }
+        throw new Error(msg);
+      }
+      return response.json();
+    },
+    reject: async (id, rejectionReason) => {
+      const response = await fetch(
+        `${API_BASE_URL}/intern-requests/${id}/reject`,
+        {
+          method: "PATCH",
+          headers: getAuthHeaders(),
+          body: JSON.stringify({ rejectionReason }),
+        }
+      );
+      if (!response.ok) {
+        let msg = "Ошибка при отклонении заявки";
+        try {
+          msg = (await response.json()).message || msg;
+        } catch {
+          /* keep default */
+        }
+        throw new Error(msg);
+      }
+      return response.json();
+    },
+  },
 };

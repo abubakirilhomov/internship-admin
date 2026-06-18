@@ -27,6 +27,7 @@ import LessonCriteria from "./pages/LessonCriteria";
 import MentorQuality from "./pages/MentorQuality";
 import StuckFeedbacks from "./pages/StuckFeedbacks";
 import Applications from "./pages/Applications";
+import InternRequests from "./pages/InternRequests";
 import Interviews from "./pages/Interviews";
 import InterviewBank from "./pages/InterviewBank";
 import MarsIdReturn from "./pages/MarsIdReturn";
@@ -208,6 +209,16 @@ function App() {
                 <ProtectedRoute>
                   <Layout>
                     <StuckFeedbacks />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/intern-requests"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <InternRequests />
                   </Layout>
                 </ProtectedRoute>
               }
