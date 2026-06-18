@@ -19,10 +19,12 @@ const GRADE_COLORS = {
 };
 
 const THRESHOLD_OPTIONS = [
-  { label: "< 25% нормы", value: 25 },
-  { label: "< 50% нормы", value: 50 },
-  { label: "< 75% нормы", value: 75 },
-  { label: "0 уроков", value: 0 },
+  { label: "< 25% нормы", value: 25, type: "pct" },
+  { label: "< 50% нормы", value: 50, type: "pct" },
+  { label: "< 75% нормы", value: 75, type: "pct" },
+  { label: "0 уроков", value: 0, type: "pct" },
+  { label: "≥15 дн без урока", value: 15, type: "days" },
+  { label: "≥30 дн без урока", value: 30, type: "days" },
 ];
 
 const InactiveInterns = () => {
@@ -30,7 +32,7 @@ const InactiveInterns = () => {
   const [branches, setBranches] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [threshold, setThreshold] = useState(50);
+  const [filter, setFilter] = useState({ value: 50, type: "pct" });
   const [selectedBranch, setSelectedBranch] = useState("all");
   const [period, setPeriod] = useState("month");
   const [sortField, setSortField] = useState("percentage");
@@ -87,9 +89,12 @@ const InactiveInterns = () => {
 
   const filtered = useMemo(() => {
     let list = stats.filter((s) => {
-      if (threshold === 0) return s.confirmedCount === 0;
+      if (filter.type === "days") {
+        return s.daysInactive != null && s.daysInactive >= filter.value;
+      }
+      if (filter.value === 0) return s.confirmedCount === 0;
       const pct = s.norm > 0 ? (s.confirmedCount / s.norm) * 100 : 0;
-      return pct < threshold;
+      return pct < filter.value;
     });
 
     if (selectedBranch !== "all") {
@@ -113,6 +118,9 @@ const InactiveInterns = () => {
       } else if (sortField === "norm") {
         av = a.norm || 0;
         bv = b.norm || 0;
+      } else if (sortField === "daysInactive") {
+        av = a.daysInactive ?? -1;
+        bv = b.daysInactive ?? -1;
       }
       if (av < bv) return sortDir === "asc" ? -1 : 1;
       if (av > bv) return sortDir === "asc" ? 1 : -1;
@@ -120,7 +128,7 @@ const InactiveInterns = () => {
     });
 
     return list;
-  }, [stats, threshold, selectedBranch, sortField, sortDir]);
+  }, [stats, filter, selectedBranch, sortField, sortDir]);
 
   const handleSort = (field) => {
     if (sortField === field) {
@@ -218,10 +226,10 @@ const InactiveInterns = () => {
           <div className="flex gap-1">
             {THRESHOLD_OPTIONS.map((opt) => (
               <button
-                key={opt.value}
-                onClick={() => setThreshold(opt.value)}
+                key={`${opt.type}-${opt.value}`}
+                onClick={() => setFilter({ value: opt.value, type: opt.type })}
                 className={`text-xs px-3 py-1.5 rounded-lg font-medium transition-colors border ${
-                  threshold === opt.value
+                  filter.value === opt.value && filter.type === opt.type
                     ? "bg-red-500 text-white border-red-500"
                     : "bg-white text-slate-600 border-slate-200 hover:border-slate-300"
                 }`}
@@ -314,6 +322,12 @@ const InactiveInterns = () => {
                 >
                   Выполнение <SortIcon field="percentage" />
                 </th>
+                <th
+                  className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide cursor-pointer select-none hover:text-slate-700"
+                  onClick={() => handleSort("daysInactive")}
+                >
+                  Дней без урока <SortIcon field="daysInactive" />
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
@@ -380,6 +394,29 @@ const InactiveInterns = () => {
                           {pct}%
                         </span>
                       </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      {s.daysInactive == null ? (
+                        <span className="text-slate-400 text-xs">—</span>
+                      ) : (
+                        <span
+                          className={`text-sm font-semibold ${
+                            s.daysInactive >= 30
+                              ? "text-red-600"
+                              : s.daysInactive >= 15
+                              ? "text-orange-500"
+                              : "text-slate-600"
+                          }`}
+                        >
+                          {s.daysInactive} дн
+                          {s.neverAddedLesson && (
+                            <span className="text-slate-400 font-normal text-xs">
+                              {" "}
+                              · ни разу
+                            </span>
+                          )}
+                        </span>
+                      )}
                     </td>
                   </tr>
                 );
