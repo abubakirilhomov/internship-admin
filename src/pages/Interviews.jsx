@@ -75,6 +75,89 @@ function RescheduleModal({ interview, onClose, onSaved }) {
   );
 }
 
+// Повторное собеседование (пересдача): создаёт новую попытку для той же
+// заявки, перенося проваленные темы (roadmap) в фокус следующего собеса.
+function ReInterviewModal({ iv, onClose, onSaved }) {
+  const cd = iv.cooldownUntil ? new Date(iv.cooldownUntil) : null;
+  const base = cd && cd > new Date() ? cd : new Date(Date.now() + 7 * 86400000);
+  const [when, setWhen] = useState(toLocalInput(base));
+  const [ignoreCooldown, setIgnoreCooldown] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  const submit = async () => {
+    if (!when) return toast.error("Укажите дату и время");
+    setSaving(true);
+    try {
+      await api.interviews.schedule({
+        applicationId: iv.application?._id,
+        scheduledAt: new Date(when).toISOString(),
+        track: iv.track,
+        fromInterviewId: iv._id,
+        ignoreCooldown,
+      });
+      toast.success("Повторное собеседование запланировано");
+      onSaved();
+      onClose();
+    } catch (e) {
+      toast.error(e.message || "Не удалось запланировать");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const roadmap = Array.isArray(iv.roadmap) ? iv.roadmap : [];
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl w-full max-w-md shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <div className="px-5 pt-5 pb-4 border-b border-slate-100 flex items-center justify-between">
+          <h2 className="text-base font-semibold text-slate-900">Повторное собеседование</h2>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-100"><X className="w-4 h-4" /></button>
+        </div>
+        <div className="p-5 space-y-3">
+          <p className="text-xs text-slate-500">
+            Направление: <span className="font-medium text-slate-700">{TRACK_LABEL[iv.track] || iv.track}</span>
+          </p>
+          {roadmap.length > 0 && (
+            <div className="text-xs bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-amber-800">
+              <span className="font-medium">Фокус повторного собеса:</span> {roadmap.join(", ")}
+            </div>
+          )}
+          <div>
+            <label className="text-xs font-medium text-slate-600 uppercase tracking-wide">Дата и время</label>
+            <input
+              type="datetime-local"
+              value={when}
+              onChange={(e) => setWhen(e.target.value)}
+              className="mt-1 w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:border-blue-400"
+            />
+          </div>
+          {cd && (
+            <p className="text-xs text-slate-400">
+              Кулдаун до {cd.toLocaleDateString("ru-RU")}.
+            </p>
+          )}
+          <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={ignoreCooldown}
+              onChange={(e) => setIgnoreCooldown(e.target.checked)}
+              className="rounded border-slate-300"
+            />
+            Игнорировать кулдаун
+          </label>
+        </div>
+        <div className="px-5 py-4 border-t border-slate-100 flex justify-end gap-2">
+          <button onClick={onClose} className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded-lg">Отмена</button>
+          <button onClick={submit} disabled={saving} className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg disabled:opacity-60">
+            {saving ? "Планирование…" : "Запланировать"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const MARK_CYCLE = ["none", "pass", "partial", "fail"];
 const MARK_META = {
   none: { label: "—", cls: "bg-slate-100 text-slate-400" },
@@ -106,6 +189,11 @@ function ScoringModal({ interview, onClose, onSaved }) {
   const [account, setAccount] = useState(null);
   const [accCopied, setAccCopied] = useState(false);
 
+  // Фокус пересдачи: темы из roadmap прошлой попытки. По умолчанию показываем
+  // только их (с переключателем «показать все»).
+  const focusSet = new Set((interview.focusTopics || []).map(String));
+  const [showAll, setShowAll] = useState(focusSet.size === 0);
+
   useEffect(() => {
     (async () => {
       try {
@@ -124,6 +212,10 @@ function ScoringModal({ interview, onClose, onSaved }) {
       const cur = m[id] || "none";
       return { ...m, [id]: MARK_CYCLE[(MARK_CYCLE.indexOf(cur) + 1) % MARK_CYCLE.length] };
     });
+
+  const visibleTopics = showAll
+    ? topics
+    : topics.filter((t) => focusSet.has(String(t._id)));
 
   let earned = 0, total = 0;
   for (const t of topics) {
@@ -215,8 +307,22 @@ function ScoringModal({ interview, onClose, onSaved }) {
               ) : topics.length === 0 ? (
                 <p className="text-sm text-slate-400 text-center py-8">Банк пуст для этого направления. Засей банк или добавь темы.</p>
               ) : (
-                CATS.map((c) => {
-                  const list = topics.filter((t) => t.category === c.value);
+                <>
+                {focusSet.size > 0 && (
+                  <div className="flex items-center justify-between text-xs bg-slate-50 border border-slate-100 rounded-lg px-3 py-2">
+                    <span className="text-slate-500">
+                      {showAll ? "Показаны все темы" : `Только темы на повтор (${visibleTopics.length})`}
+                    </span>
+                    <button
+                      onClick={() => setShowAll((s) => !s)}
+                      className="text-blue-600 hover:underline font-medium"
+                    >
+                      {showAll ? "Только темы на повтор" : "Показать все темы"}
+                    </button>
+                  </div>
+                )}
+                {CATS.map((c) => {
+                  const list = visibleTopics.filter((t) => t.category === c.value);
                   if (!list.length) return null;
                   return (
                     <div key={c.value}>
@@ -235,7 +341,8 @@ function ScoringModal({ interview, onClose, onSaved }) {
                       </div>
                     </div>
                   );
-                })
+                })}
+                </>
               )}
             </div>
             <div className="px-5 py-3 border-t border-slate-100">
@@ -471,7 +578,7 @@ function LetterModal({ interviewId, candidate, onClose }) {
   );
 }
 
-function ResultCard({ iv }) {
+function ResultCard({ iv, onScheduled }) {
   const a = iv.application || {};
   const name = `${a.firstName || ""} ${a.lastName || ""}`.trim() || "—";
   const teacher = a.mentor ? `${a.mentor.name || ""} ${a.mentor.lastName || ""}`.trim() : "";
@@ -479,7 +586,9 @@ function ResultCard({ iv }) {
     ? new Date(iv.conductedAt).toLocaleDateString("ru-RU", { day: "2-digit", month: "short", year: "numeric" })
     : "—";
   const [showLetter, setShowLetter] = useState(false);
+  const [showReInterview, setShowReInterview] = useState(false);
   const passed = iv.passed;
+  const canRetake = iv.status === "completed" && passed === false && !a.convertedToIntern;
 
   return (
     <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-4">
@@ -511,6 +620,11 @@ function ResultCard({ iv }) {
         <button onClick={() => setShowLetter(true)} className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg">
           <FileText className="w-3.5 h-3.5" /> Письмо
         </button>
+        {canRetake && (
+          <button onClick={() => setShowReInterview(true)} className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-amber-700 bg-amber-50 hover:bg-amber-100 rounded-lg">
+            <RefreshCw className="w-3.5 h-3.5" /> Повторное собеседование
+          </button>
+        )}
         {passed && a.convertedToIntern && (
           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-700">✓ аккаунт создан</span>
         )}
@@ -520,6 +634,13 @@ function ResultCard({ iv }) {
       </div>
 
       {showLetter && <LetterModal interviewId={iv._id} candidate={name} onClose={() => setShowLetter(false)} />}
+      {showReInterview && (
+        <ReInterviewModal
+          iv={iv}
+          onClose={() => setShowReInterview(false)}
+          onSaved={() => onScheduled && onScheduled()}
+        />
+      )}
     </div>
   );
 }
@@ -622,7 +743,9 @@ export default function Interviews() {
         </>
       ) : (
         <div className="grid gap-3 md:grid-cols-2">
-          {completedSorted.map((iv) => <ResultCard key={iv._id} iv={iv} />)}
+          {completedSorted.map((iv) => (
+            <ResultCard key={iv._id} iv={iv} onScheduled={() => setMode("scheduled")} />
+          ))}
         </div>
       )}
 
