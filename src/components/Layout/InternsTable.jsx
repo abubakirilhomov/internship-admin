@@ -477,11 +477,11 @@ const InternsTable = ({ interns: internsProp, onEdit, onDelete, onViolations, re
           <table className="w-full">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200">
-                {["Интерн", "Филиал", "Контакты", "Сфера · Грейд", "Уроки", "Статус", ""].map(
+                {["Интерн", "Филиал", "Контакты", "Возраст", "Сфера · Грейд", "Уроки", "Статус", ""].map(
                   (h, i) => (
                     <th
                       key={i}
-                      className={`px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide ${i === 6 ? "text-right" : "text-left"}`}
+                      className={`px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide ${i === 7 ? "text-right" : "text-left"}`}
                     >
                       {h}
                     </th>
@@ -492,7 +492,7 @@ const InternsTable = ({ interns: internsProp, onEdit, onDelete, onViolations, re
             <tbody className="divide-y divide-slate-100">
               {paginatedInterns.length === 0 ? (
                 <tr>
-                  <td colSpan="7" className="px-4 py-14 text-center">
+                  <td colSpan="8" className="px-4 py-14 text-center">
                     <div className="flex flex-col items-center gap-2 text-slate-400">
                       <Search className="w-8 h-8 opacity-30" />
                       <p className="text-sm">Стажёры не найдены</p>
@@ -564,6 +564,11 @@ const InternsTable = ({ interns: internsProp, onEdit, onDelete, onViolations, re
                           <p className="text-slate-700">{intern.phoneNumber || "—"}</p>
                           <p className="text-slate-400">{intern.telegram || "—"}</p>
                         </div>
+                      </td>
+
+                      {/* Возраст (из анкеты или введён админом) */}
+                      <td className="px-4 py-3 text-sm text-slate-700 whitespace-nowrap">
+                        {intern.age ? intern.age : <span className="text-slate-400">—</span>}
                       </td>
 
                       {/* Сфера · Грейд */}

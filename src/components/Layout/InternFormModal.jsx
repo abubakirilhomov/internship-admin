@@ -95,6 +95,7 @@ const InternFormModal = ({ onClose, branches, initialData, refresh }) => {
     password: "",
     phoneNumber: "",
     telegram: "",
+    age: "",
     sphere: "backend-nodejs",
     profilePhoto: "",
     branches: [{ branch: "", mentor: "" }],
@@ -138,6 +139,7 @@ const InternFormModal = ({ onClose, branches, initialData, refresh }) => {
       password: "",
       phoneNumber: initialData.phoneNumber || "",
       telegram: initialData.telegram || "",
+      age: initialData.age ?? "",
       sphere: initialData.sphere || "backend-nodejs",
       profilePhoto: initialData.profilePhoto || "",
       branches: branchList,
@@ -198,6 +200,7 @@ const InternFormModal = ({ onClose, branches, initialData, refresh }) => {
         ...(form.password ? { password: form.password } : {}),
         phoneNumber: form.phoneNumber,
         telegram: form.telegram,
+        age: form.age,
         sphere: form.sphere,
         profilePhoto: form.profilePhoto,
         branches: form.branches,
@@ -342,6 +345,21 @@ const InternFormModal = ({ onClose, branches, initialData, refresh }) => {
                       value={form.telegram}
                       onChange={(e) => set("telegram", e.target.value)}
                       placeholder="@username"
+                      className={inputCls()}
+                    />
+                  </Field>
+                </div>
+
+                {/* Возраст (из анкеты или вручную) */}
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="Возраст" icon={User}>
+                    <input
+                      type="number"
+                      min={11}
+                      max={60}
+                      value={form.age}
+                      onChange={(e) => set("age", e.target.value)}
+                      placeholder="напр. 18"
                       className={inputCls()}
                     />
                   </Field>
