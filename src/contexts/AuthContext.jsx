@@ -18,13 +18,16 @@ export const useAuth = () => {
 // Админ-доступ ортогонален к роли: канонический признак — флаг isAdmin.
 // role === 'admin' поддерживается как легаси (чистые админ-аккаунты).
 const isAdminUser = (u) => !!(u && (u.isAdmin === true || u.role === 'admin'));
+// Кто вообще допускается в эту панель: админы (полный доступ) + администраторы
+// ресепшена (role: 'administrator', только доска бейджиков своего филиала).
+const canUseApp = (u) => isAdminUser(u) || u?.role === 'administrator';
 
 const readCachedUser = () => {
   try {
     const raw = localStorage.getItem('user');
     if (!raw) return null;
     const parsed = JSON.parse(raw);
-    return isAdminUser(parsed) ? parsed : null;
+    return canUseApp(parsed) ? parsed : null;
   } catch {
     return null;
   }
@@ -104,7 +107,7 @@ export const AuthProvider = ({ children }) => {
         return { ok: false, error: data.message || 'Ошибка авторизации' };
       }
 
-      if (!isAdminUser(data.user)) {
+      if (!canUseApp(data.user)) {
         return { ok: false, error: 'Доступ только для администраторов' };
       }
 
@@ -139,7 +142,7 @@ export const AuthProvider = ({ children }) => {
     if (!data?.token || !data?.user) {
       return { ok: false, error: 'Некорректный ответ авторизации' };
     }
-    if (!isAdminUser(data.user)) {
+    if (!canUseApp(data.user)) {
       return { ok: false, error: 'Доступ только для администраторов' };
     }
     setAuthToken(data.token);

@@ -754,4 +754,74 @@ export const api = {
       return response.json();
     },
   },
+
+  // Жёлтые бейджики (sariq bejik) — учёт на ресепшене
+  badges: {
+    // Доска ресепшена филиала. branch — только для админа (администратор берёт свой).
+    board: async (branch) => {
+      const qs = branch ? `?branch=${encodeURIComponent(branch)}` : "";
+      const response = await fetch(`${API_BASE_URL}/badges/board${qs}`, {
+        headers: getAuthHeaders(),
+      });
+      if (!response.ok) {
+        const t = await response.text();
+        throw new Error(t || "Не удалось загрузить доску бейджиков");
+      }
+      return response.json();
+    },
+    // action: 'give' | 'return' | 'lost'
+    toggle: async (internId, { action, branch, note } = {}) => {
+      const response = await fetch(`${API_BASE_URL}/badges/interns/${internId}`, {
+        method: "PATCH",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ action, ...(branch ? { branch } : {}), ...(note ? { note } : {}) }),
+      });
+      if (!response.ok) {
+        let msg = "Ошибка при обновлении бейджика";
+        try { msg = (await response.json()).message || msg; } catch { /* keep */ }
+        throw new Error(msg);
+      }
+      return response.json();
+    },
+    close: async ({ branch, countedInDrawer, note } = {}) => {
+      const response = await fetch(`${API_BASE_URL}/badges/close`, {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ ...(branch ? { branch } : {}), countedInDrawer, ...(note ? { note } : {}) }),
+      });
+      if (!response.ok) {
+        let msg = "Ошибка при закрытии дня";
+        try { msg = (await response.json()).message || msg; } catch { /* keep */ }
+        throw new Error(msg);
+      }
+      return response.json();
+    },
+    history: async (internId) => {
+      const response = await fetch(`${API_BASE_URL}/badges/interns/${internId}/history`, {
+        headers: getAuthHeaders(),
+      });
+      if (!response.ok) throw new Error("Не удалось загрузить историю бейджика");
+      return response.json();
+    },
+    report: async () => {
+      const response = await fetch(`${API_BASE_URL}/badges/report`, {
+        headers: getAuthHeaders(),
+      });
+      if (!response.ok) throw new Error("Не удалось загрузить отчёт по бейджикам");
+      return response.json();
+    },
+    setStock: async ({ branch, badgeStock } = {}) => {
+      const response = await fetch(`${API_BASE_URL}/badges/stock`, {
+        method: "PATCH",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ branch, badgeStock }),
+      });
+      if (!response.ok) {
+        let msg = "Ошибка при сохранении запаса";
+        try { msg = (await response.json()).message || msg; } catch { /* keep */ }
+        throw new Error(msg);
+      }
+      return response.json();
+    },
+  },
 };

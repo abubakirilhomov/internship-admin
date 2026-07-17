@@ -311,6 +311,7 @@ const MentorFormModal = ({ branches, editData, onClose, onSaved }) => {
                   >
                     <option value="mentor">Ментор</option>
                     <option value="branchManager">Branch Manager</option>
+                    <option value="administrator">Ресепшен (бейджики)</option>
                     <option value="admin">Администратор</option>
                   </select>
                 </Field>

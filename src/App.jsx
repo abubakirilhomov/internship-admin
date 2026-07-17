@@ -31,6 +31,8 @@ import InternRequests from "./pages/InternRequests";
 import Interviews from "./pages/Interviews";
 import InterviewBank from "./pages/InterviewBank";
 import MarsIdReturn from "./pages/MarsIdReturn";
+import ReceptionBadges from "./pages/ReceptionBadges";
+import BadgeReport from "./pages/BadgeReport";
 
 const Layout = ({ children }) => {
   return (
@@ -249,6 +251,26 @@ function App() {
                 <ProtectedRoute>
                   <Layout>
                     <InterviewBank />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/badges/reception"
+              element={
+                <ProtectedRoute allowReception>
+                  <Layout>
+                    <ReceptionBadges />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/badges/report"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <BadgeReport />
                   </Layout>
                 </ProtectedRoute>
               }

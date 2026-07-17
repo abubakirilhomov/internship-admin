@@ -3,7 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import {
   Users, Building2, UserCheck, BarChart3, BarChart2, Home, LogOut,
   Scale, Clock, TrendingDown, Sliders, Settings, ListChecks, Award,
-  AlertTriangle, Archive, Inbox, CalendarCheck, UserPlus,
+  AlertTriangle, Archive, Inbox, CalendarCheck, UserPlus, BadgeCheck,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -39,6 +39,7 @@ const SECTIONS = [
       { name: 'Долги менторов', href: '/mentor-debt', icon: Clock },
       { name: 'Низкая активность', href: '/interns/inactive', icon: TrendingDown },
       { name: 'Застрявшие фидбеки', href: '/stuck-feedbacks', icon: AlertTriangle },
+      { name: 'Бейджики', href: '/badges/report', icon: BadgeCheck },
       { name: 'Архив', href: '/interns/archive', icon: Archive },
     ],
   },
@@ -54,9 +55,21 @@ const SECTIONS = [
   },
 ];
 
+// Администратор ресепшена видит только свою доску бейджиков.
+const RECEPTION_SECTIONS = [
+  {
+    title: 'Ресепшен',
+    items: [{ name: 'Бейджики', href: '/badges/reception', icon: BadgeCheck }],
+  },
+];
+
 const Sidebar = () => {
   const location = useLocation();
   const { logout, user } = useAuth();
+
+  const isReception =
+    user?.role === 'administrator' && !(user?.isAdmin === true || user?.role === 'admin');
+  const sections = isReception ? RECEPTION_SECTIONS : SECTIONS;
 
   const isActive = (item) => {
     if (location.pathname === item.href) return true;
@@ -80,7 +93,7 @@ const Sidebar = () => {
             </div>
           </div>
 
-          {SECTIONS.map((section) => (
+          {sections.map((section) => (
             <div key={section.title} className="mb-4">
               <p className="text-[10px] font-semibold tracking-widest text-slate-400 uppercase px-3 mb-1">
                 {section.title}
