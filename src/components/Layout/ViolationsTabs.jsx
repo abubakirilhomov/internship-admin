@@ -1,10 +1,11 @@
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Scale, BookOpen } from "lucide-react";
+import { Scale, BookOpen, MessageSquareWarning } from "lucide-react";
 
 const TABS = [
   { label: "Правила", href: "/rules", icon: BookOpen },
   { label: "Журнал нарушений", href: "/violations", icon: Scale },
+  { label: "Жалобы", href: "/complaints", icon: MessageSquareWarning },
 ];
 
 const ViolationsTabs = () => {

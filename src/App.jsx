@@ -19,6 +19,7 @@ import InternsRating from "./pages/InternsRating";
 import Rules from "./pages/Rules";
 import MentorDebt from "./pages/MentorDebt";
 import ViolationsPage from "./pages/ViolationsPage";
+import ComplaintsPage from "./pages/ComplaintsPage";
 import InactiveInterns from "./pages/InactiveInterns";
 import AttendancePage from "./pages/AttendancePage";
 import GradeConfig from "./pages/GradeConfig";
@@ -141,6 +142,16 @@ function App() {
                 <ProtectedRoute>
                   <Layout>
                     <ViolationsPage />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/complaints"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <ComplaintsPage />
                   </Layout>
                 </ProtectedRoute>
               }

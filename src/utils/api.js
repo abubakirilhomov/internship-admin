@@ -402,6 +402,31 @@ export const api = {
       return response.json();
     },
   },
+  complaints: {
+    getAll: async (params) => {
+      const queryString = new URLSearchParams(params).toString();
+      const response = await fetch(`${API_BASE_URL}/complaints?${queryString}`, {
+        headers: getAuthHeaders(),
+      });
+      if (!response.ok) throw new Error("Ошибка загрузки жалоб");
+      return response.json();
+    },
+    setStatus: async (internId, complaintId, status) => {
+      const response = await fetch(
+        `${API_BASE_URL}/complaints/${internId}/${complaintId}/status`,
+        {
+          method: "PATCH",
+          headers: getAuthHeaders(),
+          body: JSON.stringify({ status }),
+        }
+      );
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        throw new Error(body.message || "Не удалось обновить статус жалобы");
+      }
+      return response.json();
+    },
+  },
   lessons: {
     getStuckFeedbacks: async () => {
       const response = await fetch(`${API_BASE_URL}/lessons/stuck-feedbacks`, {
