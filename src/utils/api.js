@@ -781,6 +781,30 @@ export const api = {
   },
 
   // Жёлтые бейджики (sariq bejik) — учёт на ресепшене
+  auditLogs: {
+    // params — плоский объект фильтров; пустые значения не отправляем,
+    // иначе бэк получит status=&kind= и отфильтрует по пустой строке.
+    list: async (params = {}) => {
+      const qs = new URLSearchParams(
+        Object.entries(params).filter(([, v]) => v !== "" && v != null)
+      ).toString();
+      const response = await fetch(`${API_BASE_URL}/audit-logs?${qs}`, {
+        headers: getAuthHeaders(),
+      });
+      if (!response.ok) throw new Error("Не удалось загрузить журнал");
+      return response.json();
+    },
+    stats: async (params = {}) => {
+      const qs = new URLSearchParams(
+        Object.entries(params).filter(([, v]) => v !== "" && v != null)
+      ).toString();
+      const response = await fetch(`${API_BASE_URL}/audit-logs/stats?${qs}`, {
+        headers: getAuthHeaders(),
+      });
+      if (!response.ok) throw new Error("Не удалось загрузить сводку журнала");
+      return response.json();
+    },
+  },
   badges: {
     // Доска ресепшена филиала. branch — только для админа (администратор берёт свой).
     board: async (branch) => {
