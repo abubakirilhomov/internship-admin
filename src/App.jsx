@@ -34,6 +34,7 @@ import InterviewBank from "./pages/InterviewBank";
 import MarsIdReturn from "./pages/MarsIdReturn";
 import ReceptionBadges from "./pages/ReceptionBadges";
 import BadgeReport from "./pages/BadgeReport";
+import AuditLog from "./pages/AuditLog";
 
 const Layout = ({ children }) => {
   return (
@@ -282,6 +283,16 @@ function App() {
                 <ProtectedRoute>
                   <Layout>
                     <BadgeReport />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/audit-log"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <AuditLog />
                   </Layout>
                 </ProtectedRoute>
               }
