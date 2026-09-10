@@ -3,6 +3,8 @@
 // refresh / setSession). Refresh token rides the httpOnly cookie set by
 // the backend; we never see it from JS.
 
+import { reportApiFailure, apiBreadcrumb } from "./errorReporter";
+
 const API_BASE_URL = import.meta.env.VITE_API_URL;
 
 let accessToken = null;
@@ -71,7 +73,7 @@ const stripAuth = (headers = {}) => {
   return out;
 };
 
-export const authFetch = async (path, init = {}) => {
+const authFetchInner = async (path, init = {}) => {
   const url = path.startsWith("http") ? path : `${API_BASE_URL}${path}`;
 
   const attempt = async () => {
@@ -107,4 +109,26 @@ export const authFetch = async (path, init = {}) => {
   }
 
   return attempt();
+};
+
+/**
+ * Обёртка с телеметрией поверх authFetchInner.
+ *
+ * Крошка на каждый вызов — контекст для будущей ошибки. В отчёт только 5xx и
+ * обрывы сети: 4xx уже в серверном аудит-логе, а 401 здесь штатный — его
+ * перехватывает и чинит обновление токена выше.
+ */
+export const authFetch = async (path, init = {}) => {
+  const started = Date.now();
+  const method = String(init.method || "GET").toUpperCase();
+  try {
+    const response = await authFetchInner(path, init);
+    apiBreadcrumb({ method, url: path, status: response.status, ms: Date.now() - started });
+    if (response.status >= 500) reportApiFailure({ method, url: path, status: response.status });
+    return response;
+  } catch (error) {
+    apiBreadcrumb({ method, url: path, status: null, ms: Date.now() - started });
+    reportApiFailure({ method, url: path, error });
+    throw error;
+  }
 };

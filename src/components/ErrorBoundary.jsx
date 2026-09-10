@@ -1,4 +1,5 @@
 import React from "react";
+import { reportReactError } from "../utils/errorReporter";
 
 class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -11,7 +12,11 @@ class ErrorBoundary extends React.Component {
   }
 
   componentDidCatch(error, info) {
+    // console здесь мало: в проде interns все console.* вырезаются сборкой
+    // (vite.config.js → esbuild.drop), да и в консоли пользователя ошибку
+    // всё равно никто не увидит. Отправляем на сервер.
     console.error("ErrorBoundary caught:", error, info.componentStack);
+    reportReactError(error, info && info.componentStack);
   }
 
   handleReload() {
