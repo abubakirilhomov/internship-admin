@@ -781,6 +781,58 @@ export const api = {
   },
 
   // Жёлтые бейджики (sariq bejik) — учёт на ресепшене
+  errorIssues: {
+    // Пустые значения не отправляем: иначе бэк получит status=&app= и
+    // отфильтрует по пустой строке.
+    _qs: (params = {}) =>
+      new URLSearchParams(
+        Object.entries(params).filter(([, v]) => v !== "" && v != null)
+      ).toString(),
+    list: async (params = {}) => {
+      const response = await fetch(`${API_BASE_URL}/error-issues?${api.errorIssues._qs(params)}`, {
+        headers: getAuthHeaders(),
+      });
+      if (!response.ok) throw new Error("Не удалось загрузить список ошибок");
+      return response.json();
+    },
+    stats: async (params = {}) => {
+      const response = await fetch(`${API_BASE_URL}/error-issues/stats?${api.errorIssues._qs(params)}`, {
+        headers: getAuthHeaders(),
+      });
+      if (!response.ok) throw new Error("Не удалось загрузить сводку по ошибкам");
+      return response.json();
+    },
+    get: async (id, params = {}) => {
+      const response = await fetch(`${API_BASE_URL}/error-issues/${id}?${api.errorIssues._qs(params)}`, {
+        headers: getAuthHeaders(),
+      });
+      if (!response.ok) throw new Error("Не удалось загрузить проблему");
+      return response.json();
+    },
+    // Что пользователь делал перед падением — записи аудит-лога вокруг события.
+    context: async (id, params = {}) => {
+      const response = await fetch(
+        `${API_BASE_URL}/error-issues/${id}/context?${api.errorIssues._qs(params)}`,
+        { headers: getAuthHeaders() }
+      );
+      if (!response.ok) throw new Error("Не удалось загрузить контекст");
+      return response.json();
+    },
+    update: async (id, payload) => {
+      const response = await fetch(`${API_BASE_URL}/error-issues/${id}`, {
+        method: "PATCH",
+        headers: getAuthHeaders(),
+        body: JSON.stringify(payload),
+      });
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        // Сервер объясняет отказ («недопустимый переход») — без проброса
+        // текста админ видит одинаковую ошибку на все причины.
+        throw new Error(body.message || "Не удалось изменить статус");
+      }
+      return response.json();
+    },
+  },
   auditLogs: {
     // params — плоский объект фильтров; пустые значения не отправляем,
     // иначе бэк получит status=&kind= и отфильтрует по пустой строке.

@@ -35,6 +35,7 @@ import MarsIdReturn from "./pages/MarsIdReturn";
 import ReceptionBadges from "./pages/ReceptionBadges";
 import BadgeReport from "./pages/BadgeReport";
 import AuditLog from "./pages/AuditLog";
+import ErrorIssues from "./pages/ErrorIssues";
 
 const Layout = ({ children }) => {
   return (
@@ -293,6 +294,16 @@ function App() {
                 <ProtectedRoute>
                   <Layout>
                     <AuditLog />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/errors"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <ErrorIssues />
                   </Layout>
                 </ProtectedRoute>
               }
