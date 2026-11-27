@@ -1,6 +1,8 @@
 import React, { Suspense, lazy, useEffect, useState } from "react";
 import { RESULT_KEYS, RESULT_META, answerStatus, withDrafts } from "./liveFormat";
 import { canRun, usesSandpack } from "../../components/codeSandbox/runnable";
+import { canTest } from "../../components/codeSandbox/testable";
+import TestPanel from "./TestPanel";
 
 // Песочница — отдельным чанком: нужна только на amaliy-вопросах web/js.
 const AnswerRunner = lazy(() => import("../../components/codeSandbox/AnswerRunner"));
@@ -88,6 +90,9 @@ export default function CandidateAnswer({ question, drafts, onRate, offline, lan
                 className="mt-1 text-xs text-blue-600 hover:underline">Во весь экран</button>
               {full && <RunnerOverlay question={question} code={answer.text} onClose={() => setFull(false)} />}
             </div>
+          )}
+          {canTest(question.editor) && question.answerKind !== "choice" && question.tests?.length > 0 && answer?.text && (
+            <TestPanel tests={question.tests} editor={question.editor} code={answer.text} lang={lang} />
           )}
           {!typing ? <p className="text-xs text-slate-400 mt-1">{st.text}</p>
             : !answer?.submittedAt && <p className="text-xs text-slate-400 mt-1">Ещё не отправлен</p>}

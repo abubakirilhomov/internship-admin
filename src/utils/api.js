@@ -17,6 +17,20 @@ const getAuthHeaders = () => ({
   "Content-Type": "application/json",
 });
 
+// Запись в банк: JSON-ответ или Error с .status и .details ({ sets, check }) из тела ошибки.
+const bankWrite = async (method, path, body) => {
+  const response = await fetch(`${API_BASE_URL}${path}`, { method, headers: getAuthHeaders(), body: JSON.stringify(body ?? {}) });
+  let data = null;
+  try { data = await response.json(); } catch { data = null; }
+  if (!response.ok) {
+    const err = new Error(data?.message || `Ошибка ${response.status}`);
+    err.status = response.status;
+    err.details = { sets: data?.sets, check: data?.check };
+    throw err;
+  }
+  return data;
+};
+
 const buildQuery = (params = {}) => {
   const qs = new URLSearchParams();
   Object.entries(params).forEach(([k, v]) => {
@@ -804,6 +818,17 @@ export const api = {
       if (!response.ok) throw new Error(await response.text());
       return response.json();
     },
+    sets: async (params = {}) => {
+      const response = await fetch(`${API_BASE_URL}/question-bank/sets${buildQuery(params)}`, { headers: getAuthHeaders() });
+      if (!response.ok) throw new Error(await readError(response));
+      return response.json();
+    },
+    // Редактор банка (этап 6). Ошибки несут details: { sets } (вопрос мешает наборам) и { check } (состав набора).
+    createQuestion: (body) => bankWrite("POST", "/question-bank/questions", body),
+    updateQuestion: (code, body) => bankWrite("PATCH", `/question-bank/questions/${encodeURIComponent(code)}`, body),
+    checkSet: (body) => bankWrite("POST", "/question-bank/sets/check", body),
+    createSet: (body) => bankWrite("POST", "/question-bank/sets", body),
+    updateSet: (id, body) => bankWrite("PATCH", `/question-bank/sets/${id}`, body),
   },
   interviewTopics: {
     getAll: async (params = {}) => {

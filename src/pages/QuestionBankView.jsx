@@ -1,9 +1,11 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { api } from "../utils/api";
 import QuestionDemo from "../components/questionDemo/QuestionDemo";
+import QuestionEditor from "./bank/QuestionEditor";
+import { RU_STATUS } from "./bank/bankForm";
 
 // Просмотр банка вопросов живых собеседований (только админ): вопрос, ответ
-// для интервьюера, живая сцена и её исправление. Редактирование — позже.
+// для интервьюера, живая сцена и её исправление; правка, добавление, архив (этап 6).
 const TOPIC_LABEL = {
   html: "HTML", css: "CSS", js: "JavaScript", react: "React", vue: "Vue", tailwind: "Tailwind",
   node: "Node.js", express: "Express", database: "БД", api: "API",
@@ -26,11 +28,16 @@ function RichText({ text }) {
           p.trim() && <p key={i} className="whitespace-pre-wrap">{p.trim()}</p>
         )
       )}
+      {editing !== undefined && (
+        <QuestionEditor key={editing?.code || "new"} question={editing}
+          onClose={() => setEditing(undefined)}
+          onSaved={(saved) => { setEditing(undefined); if (saved?.topic && saved.topic !== topic) setTopic(saved.topic); setReload((n) => n + 1); }} />
+      )}
     </div>
   );
 }
 
-function QuestionCard({ q, lang }) {
+function QuestionCard({ q, lang, onEdit }) {
   const ru = lang === "ru";
   const prompt = (ru && q.promptRu) || q.prompt;
   const answer = (ru && q.expectedAnswerRu) || q.expectedAnswer;
@@ -46,7 +53,15 @@ function QuestionCard({ q, lang }) {
             {q.demo.audience === "interviewer" ? "сцена: только интервьюер" : "сцена: видит кандидат"}
           </span>
         )}
-        {ru && q.ruStatus !== "ok" && <span className="px-2 py-0.5 rounded-full bg-orange-100 text-orange-700">перевод: {q.ruStatus}</span>}
+        {q.isActive === false && <span className="px-2 py-0.5 rounded-full bg-slate-800 text-white">в архиве</span>}
+        {q.tests?.length > 0 && <span className="px-2 py-0.5 rounded-full bg-violet-100 text-violet-700">автотесты: {q.tests.length}</span>}
+        {q.ruStatus !== "ok" && (
+          <span className={`px-2 py-0.5 rounded-full ${RU_STATUS[q.ruStatus]?.cls || "bg-orange-100 text-orange-700"}`} data-testid="card-ru-status">
+            {RU_STATUS[q.ruStatus]?.label || q.ruStatus}
+          </span>
+        )}
+        <button type="button" onClick={() => onEdit(q)} data-testid={`edit-${q.code}`}
+          className="ml-auto px-3 py-1 rounded-lg text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100">Править</button>
       </div>
       <RichText text={prompt} />
       {hasDemo && <QuestionDemo demo={q.demo} fix={q.demoFix || null} lang={lang} />}
@@ -55,6 +70,11 @@ function QuestionCard({ q, lang }) {
           <summary className="cursor-pointer text-xs font-medium text-slate-500 hover:text-slate-800">Ответ для интервьюера</summary>
           <div className="mt-2 border-l-2 border-slate-200 pl-3"><RichText text={answer} /></div>
         </details>
+      )}
+      {editing !== undefined && (
+        <QuestionEditor key={editing?.code || "new"} question={editing}
+          onClose={() => setEditing(undefined)}
+          onSaved={(saved) => { setEditing(undefined); if (saved?.topic && saved.topic !== topic) setTopic(saved.topic); setReload((n) => n + 1); }} />
       )}
     </div>
   );
@@ -68,6 +88,9 @@ export default function QuestionBankView() {
   const [questions, setQuestions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [showArchive, setShowArchive] = useState(false);
+  const [editing, setEditing] = useState(undefined); // undefined — закрыт, null — новый, объект — правка
+  const [reload, setReload] = useState(0);
 
   useEffect(() => { api.questionBank.stats().then(setStats).catch(() => {}); }, []);
   useEffect(() => {
@@ -77,7 +100,7 @@ export default function QuestionBankView() {
       .then((r) => setQuestions(r.questions || []))
       .catch((e) => setError(e.message || "Ошибка загрузки"))
       .finally(() => setLoading(false));
-  }, [topic]);
+  }, [topic, showArchive, reload]);
 
   const topics = useMemo(() => Object.keys(stats?.topics || { css: 0 }), [stats]);
   const shown = onlyDemos ? questions.filter((q) => q.demo?.html) : questions;
@@ -94,8 +117,13 @@ export default function QuestionBankView() {
         </div>
         <div className="flex items-center gap-3 text-sm">
           <label className="flex items-center gap-1.5 text-slate-600">
+            <input type="checkbox" checked={showArchive} onChange={(e) => setShowArchive(e.target.checked)} /> с архивом
+          </label>
+          <label className="flex items-center gap-1.5 text-slate-600">
             <input type="checkbox" checked={onlyDemos} onChange={(e) => setOnlyDemos(e.target.checked)} /> только со сценами
           </label>
+          <button type="button" onClick={() => setEditing(null)} data-testid="add-question"
+            className="px-3 py-1.5 rounded-lg text-xs font-medium bg-blue-600 text-white hover:bg-blue-700">+ Вопрос</button>
           <div className="inline-flex rounded-lg border border-slate-200 overflow-hidden">
             {["uz", "ru"].map((l) => (
               <button key={l} type="button" onClick={() => setLang(l)}
@@ -121,9 +149,14 @@ export default function QuestionBankView() {
         <div className="text-sm text-slate-500">Загрузка…</div>
       ) : (
         <div className="space-y-4">
-          {shown.map((q) => <QuestionCard key={q.code} q={q} lang={lang} />)}
+          {shown.map((q) => <QuestionCard key={q.code} q={q} lang={lang} onEdit={setEditing} />)}
           {!shown.length && <div className="text-sm text-slate-500">Нет вопросов.</div>}
         </div>
+      )}
+      {editing !== undefined && (
+        <QuestionEditor key={editing?.code || "new"} question={editing}
+          onClose={() => setEditing(undefined)}
+          onSaved={(saved) => { setEditing(undefined); if (saved?.topic && saved.topic !== topic) setTopic(saved.topic); setReload((n) => n + 1); }} />
       )}
     </div>
   );
