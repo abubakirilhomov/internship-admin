@@ -1,17 +1,35 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../../utils/api";
-import { TOPICS } from "./bankForm";
+import { compareTopics, topicLabel, trackLabel } from "../../utils/tracks";
 
 // Редактор набора вопросов (только админ): состав проверяется по правилу уровней на сервере
 // (одинаковая сложность собеседований) — неверный набор не сохраняется.
+// Python: темы = модули (подписи из правила трека); extras — HTML/CSS из JS-банка сверх основного
+// набора (коды и лимит — rules.extras), уровни и квоты считаются по основному составу.
 const LEVEL_CLS = { oson: "bg-green-100 text-green-700", orta: "bg-yellow-100 text-yellow-700", qiyin: "bg-red-100 text-red-700" };
 const LEVEL_SHORT = { oson: "oson", orta: "o'rta", qiyin: "qiyin" };
-const TOPIC_LABEL = Object.fromEntries(TOPICS.map((t) => [t.value, t.label]));
 const fmtLevels = (c) => (c ? `${c.oson}/${c.orta}/${c.qiyin}` : "—");
+
+function Pick({ q, on, onToggle }) {
+  return (
+    <label className={`flex items-start gap-2 rounded-lg border px-2 py-1.5 text-sm cursor-pointer ${on ? "border-blue-300 bg-blue-50" : "border-slate-200 hover:bg-slate-50"}`}>
+      <input type="checkbox" className="mt-1" checked={on} onChange={() => onToggle(q.code)} data-testid={`pick-${q.code}`} />
+      <span className="min-w-0">
+        <span className="font-mono text-xs text-slate-900">{q.code}</span>{" "}
+        <span className={`px-1.5 rounded text-[10px] ${LEVEL_CLS[q.level]}`}>{LEVEL_SHORT[q.level]}</span>
+        {q.isPractical && <span className="ml-1 text-[10px] text-slate-500">amaliy</span>}
+        {q.subtopic && <span className="ml-1 text-[10px] text-slate-400">{q.subtopic}</span>}
+        <span className="block text-xs text-slate-500 truncate">{q.promptShort || String(q.prompt || "").replace(/\s+/g, " ").slice(0, 70)}</span>
+      </span>
+    </label>
+  );
+}
 
 export default function SetEditor({ set, track, onClose, onSaved }) {
   const isNew = !set;
   const [bank, setBank] = useState(null);
+  const [rules, setRules] = useState(null); // ответ GET /rules/:track: extras и подписи тем
+  const [extraBank, setExtraBank] = useState([]);
   const [codes, setCodes] = useState(set ? [...set.questionCodes] : []);
   const [check, setCheck] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -22,7 +40,19 @@ export default function SetEditor({ set, track, onClose, onSaved }) {
     api.questionBank.questions({ track })
       .then((r) => setBank(r.questions || []))
       .catch((e) => setError(e.message));
+    api.questionBank.getRules(track).then(setRules).catch(() => setRules(null));
   }, [track]);
+
+  // Вопросы extras (чужой банк) — запросом без фильтра по направлению, оставляем только коды правила.
+  const extrasRule = rules?.rules?.extras || null;
+  const extraCodes = useMemo(() => extrasRule?.codes || [], [extrasRule]);
+  useEffect(() => {
+    if (!extraCodes.length) { setExtraBank([]); return; }
+    const want = new Set(extraCodes);
+    api.questionBank.questions({})
+      .then((r) => setExtraBank((r.questions || []).filter((q) => want.has(q.code) && !(q.tracks || []).includes(track))))
+      .catch(() => setExtraBank([]));
+  }, [extraCodes, track]);
 
   useEffect(() => {
     const onKey = (e) => { if (e.key === "Escape" && !busy) onClose(); };
@@ -42,18 +72,22 @@ export default function SetEditor({ set, track, onClose, onSaved }) {
     return () => clearTimeout(id);
   }, [codes, track, set]);
 
-  const byCode = useMemo(() => new Map((bank || []).map((q) => [q.code, q])), [bank]);
+  const byCode = useMemo(() => new Map([...extraBank, ...(bank || [])].map((q) => [q.code, q])), [bank, extraBank]);
+  const extraSet = useMemo(() => new Set(extraBank.map((q) => q.code)), [extraBank]);
+  const labels = useMemo(() => Object.fromEntries((rules?.topics || []).map((t) => [t.topic, t.label])), [rules]);
   const groups = useMemo(() => {
     const m = new Map();
     (bank || []).forEach((q) => m.set(q.topic, [...(m.get(q.topic) || []), q]));
-    return [...m.entries()];
+    return [...m.entries()].sort((a, b) => compareTopics(a[0], b[0]));
   }, [bank]);
   const toggle = (code) => setCodes((c) => (c.includes(code) ? c.filter((x) => x !== code) : [...c, code]));
+  // Уровни — по основному составу (extras в правило уровней не входят).
   const got = useMemo(() => {
     const g = { oson: 0, orta: 0, qiyin: 0 };
-    codes.forEach((c) => { const l = byCode.get(c)?.level; if (l in g) g[l] += 1; });
+    codes.forEach((c) => { if (extraSet.has(c)) return; const l = byCode.get(c)?.level; if (l in g) g[l] += 1; });
     return g;
-  }, [codes, byCode]);
+  }, [codes, byCode, extraSet]);
+  const extrasPicked = codes.filter((c) => extraSet.has(c)).length;
 
   const save = async () => {
     setBusy(true); setError("");
@@ -78,14 +112,18 @@ export default function SetEditor({ set, track, onClose, onSaved }) {
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl max-h-full overflow-auto" onClick={(e) => e.stopPropagation()}
         role="dialog" aria-modal="true" aria-label={isNew ? "Новый набор" : `Набор №${set.number}`} data-testid="set-editor">
         <div className="sticky top-0 bg-white border-b border-slate-100 px-5 py-3 flex items-center gap-2 z-10">
-          <h2 className="text-base font-semibold text-slate-900">{isNew ? "Новый набор" : `Набор №${set.number}`} · {track}</h2>
+          <h2 className="text-base font-semibold text-slate-900">{isNew ? "Новый набор" : `Набор №${set.number}`} · {trackLabel(track)}</h2>
           <button type="button" onClick={onClose} className="ml-auto px-3 py-1 rounded-lg text-sm text-slate-600 hover:bg-slate-100">Закрыть ✕</button>
         </div>
 
         <div className="p-5 space-y-4">
           <div className="sticky top-[53px] z-10 rounded-xl bg-slate-50 border border-slate-100 p-3 space-y-1 text-sm shadow-sm" data-testid="set-check">
             <p className="text-slate-700">
-              Выбрано <b>{codes.length}</b>: oson {got.oson} · o'rta {got.orta} · qiyin {got.qiyin}
+              Выбрано <b>{codes.length}</b>
+              {(extrasPicked > 0 || check?.extras?.length > 0) && (
+                <span className="text-slate-500" data-testid="set-base-extras"> (основных {check?.baseSize ?? codes.length - extrasPicked} + HTML/CSS {check?.extras?.length ?? extrasPicked})</span>
+              )}
+              : oson {got.oson} · o'rta {got.orta} · qiyin {got.qiyin}
               {check?.levels?.want && <span className="text-slate-500"> — по правилу {fmtLevels(check.levels.want)}</span>}
             </p>
             {check?.ok && <p className="text-green-700">✓ состав соответствует правилу, набор можно сохранить</p>}
@@ -112,25 +150,23 @@ export default function SetEditor({ set, track, onClose, onSaved }) {
             <div className="space-y-3">
               {groups.map(([topic, list]) => (
                 <div key={topic}>
-                  <p className="text-xs font-semibold text-slate-500 uppercase mb-1">{TOPIC_LABEL[topic] || topic}</p>
+                  <p className="text-xs font-semibold text-slate-500 uppercase mb-1">{topicLabel(topic, labels)}</p>
                   <div className="grid sm:grid-cols-2 gap-1">
-                    {list.map((q) => {
-                      const on = codes.includes(q.code);
-                      return (
-                        <label key={q.code} className={`flex items-start gap-2 rounded-lg border px-2 py-1.5 text-sm cursor-pointer ${on ? "border-blue-300 bg-blue-50" : "border-slate-200 hover:bg-slate-50"}`}>
-                          <input type="checkbox" className="mt-1" checked={on} onChange={() => toggle(q.code)} data-testid={`pick-${q.code}`} />
-                          <span className="min-w-0">
-                            <span className="font-mono text-xs text-slate-900">{q.code}</span>{" "}
-                            <span className={`px-1.5 rounded text-[10px] ${LEVEL_CLS[q.level]}`}>{LEVEL_SHORT[q.level]}</span>
-                            {q.isPractical && <span className="ml-1 text-[10px] text-slate-500">amaliy</span>}
-                            <span className="block text-xs text-slate-500 truncate">{q.promptShort || q.prompt.replace(/\s+/g, " ").slice(0, 70)}</span>
-                          </span>
-                        </label>
-                      );
-                    })}
+                    {list.map((q) => <Pick key={q.code} q={q} on={codes.includes(q.code)} onToggle={toggle} />)}
                   </div>
                 </div>
               ))}
+              {extraBank.length > 0 && (
+                <div data-testid="set-extras">
+                  <p className="text-xs font-semibold text-slate-500 uppercase mb-1">
+                    HTML/CSS (из JS-банка), не больше {extrasRule?.max ?? 0}
+                    {extrasRule?.maxTotal ? <span className="normal-case font-normal"> · всего вопросов ≤ {extrasRule.maxTotal}</span> : null}
+                  </p>
+                  <div className="grid sm:grid-cols-2 gap-1">
+                    {extraBank.map((q) => <Pick key={q.code} q={q} on={codes.includes(q.code)} onToggle={toggle} />)}
+                  </div>
+                </div>
+              )}
             </div>
           )}
           {error && <div className="p-3 rounded-lg bg-red-50 text-red-700 text-sm" role="alert">{error}</div>}

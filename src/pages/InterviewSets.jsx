@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { api } from "../utils/api";
 import { BANK_TRACKS, fmtShortDate, overlapCellClass, overlapText } from "./live/liveFormat";
 import SetEditor from "./bank/SetEditor";
+import RulePanel from "./bank/RulePanel";
 
 // «Наборы»: какой набор вопросов кому достался и когда, сколько раз использован,
 // пересечения вопросов между последними собеседованиями (только админ).
@@ -31,8 +32,9 @@ function Card({ title, hint, children }) {
 }
 
 export default function InterviewSets() {
-  const liveTracks = BANK_TRACKS.filter((t) => t.value !== "backend-nodejs");
+  const liveTracks = BANK_TRACKS; // три направления найма: JS · React, JS · Vue, Python
   const [track, setTrack] = useState(liveTracks[0].value);
+  const [ruleOpen, setRuleOpen] = useState(false);
   const [overview, setOverview] = useState(null);
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -92,6 +94,20 @@ export default function InterviewSets() {
         </div>
       ) : (
         <>
+          <section className="bg-white rounded-2xl border border-slate-200 p-5 space-y-3">
+            <button type="button" onClick={() => setRuleOpen((v) => !v)} data-testid="toggle-rule"
+              className="w-full flex items-center justify-between text-left">
+              <span>
+                <span className="block text-sm font-semibold text-slate-900">Правило набора</span>
+                <span className="block text-xs text-slate-500">
+                  Сколько вопросов {track === "backend-python" ? "каждого модуля" : "каждой темы"} и какого уровня в наборе на 15 / 18 / 20 вопросов.
+                </span>
+              </span>
+              <span className="text-xs text-blue-700">{ruleOpen ? "Скрыть" : "Показать"}</span>
+            </button>
+            {ruleOpen && <RulePanel key={track} track={track} />}
+          </section>
+
           <Card title="Использование наборов" hint="Сколько раз набор брали и кому он доставался в последний раз.">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">

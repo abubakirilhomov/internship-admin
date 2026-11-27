@@ -10,16 +10,10 @@ import { useNavigate } from "react-router-dom";
 import StartLiveModal from "../components/interviews/StartLiveModal";
 import CandidateAccessModal from "../components/interviews/CandidateAccessModal";
 import { TRACK_FULL } from "./live/liveFormat";
+import { ACTIVE_TRACKS, SPHERE_LABELS as TRACK_LABEL } from "../utils/tracks";
 
-const TRACKS = [
-  { value: "", label: "Все направления" },
-  { value: "frontend-react", label: "Frontend (React)" },
-  { value: "backend-nodejs", label: "Backend (Node.js)" },
-];
-const TRACK_LABEL = {
-  "frontend-react": "Frontend React",
-  "backend-nodejs": "Backend Node",
-};
+// Фильтр: три направления найма; архивные собеседования (backend-nodejs) — в «Все направления».
+const TRACKS = [{ value: "", label: "Все направления" }, ...ACTIVE_TRACKS];
 
 const startOfToday = () => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; };
 const endOfToday = () => { const d = new Date(); d.setHours(23, 59, 59, 999); return d; };

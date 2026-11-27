@@ -8,7 +8,7 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test": "node --test src/components/questionDemo/ src/components/codeSandbox/ src/pages/live/"
+    "test": "node --test src/components/questionDemo/ src/components/codeSandbox/ src/pages/live/ src/pages/bank/ src/utils/"
   },
   "dependencies": {
     "@codesandbox/sandpack-react": "2.20.0",

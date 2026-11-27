@@ -81,6 +81,9 @@ export default function CandidateAnswer({ question, drafts, onRate, offline, lan
               {answer?.text || ""}
             </pre>
           )}
+          {!runnable && question.editor && question.answerKind !== "choice" && answer?.text && (
+            <p className="text-xs text-slate-400 mt-1">Код не запускается в браузере ({question.editor}) — только просмотр.</p>
+          )}
           {runnable && answer?.text && (
             <div className="mt-3">
               <Suspense fallback={<div className="h-48 rounded-lg bg-slate-100 animate-pulse" />}>
