@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { api } from "../../utils/api";
+import { pendingLabel } from "../../utils/tracks";
 import {
   ANSWER_KINDS, EDITORS, LEVELS, RU_STATUS, TESTABLE_EDITORS, TOPICS, FormError,
   addTest, effectiveEditor, emptyForm, isValidCode, patchTest, pythonDefaults, removeTest, toCreateBody, toForm, toPatch,
@@ -74,7 +75,7 @@ export default function QuestionEditor({ question, onClose, onSaved }) {
 
   const archive = () => {
     const to = !(question.isActive !== false);
-    const ask = notCovered ? `Включить ${question.code}? Модуль пройден — вопрос попадёт в новые наборы.`
+    const ask = notCovered ? `Включить ${question.code}? ${pendingLabel(question.topic).ask}`
       : to ? `Вернуть ${question.code} из архива?` : `Архивировать ${question.code}? В новые наборы он не попадёт.`;
     if (!window.confirm(ask)) return;
     save({ isActive: to });
@@ -90,7 +91,7 @@ export default function QuestionEditor({ question, onClose, onSaved }) {
         role="dialog" aria-modal="true" aria-label={isNew ? "Новый вопрос" : `Вопрос ${question.code}`} data-testid="question-editor">
         <div className="sticky top-0 bg-white border-b border-slate-100 px-5 py-3 flex flex-wrap items-center gap-2 z-10">
           <h2 className="text-base font-semibold text-slate-900">{isNew ? "Новый вопрос" : `Вопрос ${question.code}`}</h2>
-          {notCovered && <span className="px-2 py-0.5 rounded-full text-xs bg-amber-100 text-amber-800">ещё не пройдено</span>}
+          {notCovered && <span className="px-2 py-0.5 rounded-full text-xs bg-amber-100 text-amber-800">{pendingLabel(question.topic).badge}</span>}
           {!isNew && question.isActive === false && !notCovered && <span className="px-2 py-0.5 rounded-full text-xs bg-slate-800 text-white">в архиве</span>}
           {ruStatus && <span className={`px-2 py-0.5 rounded-full text-xs ${ruStatus.cls}`} data-testid="ru-status">{ruStatus.label}</span>}
           <button type="button" onClick={onClose} className="ml-auto px-3 py-1 rounded-lg text-sm text-slate-600 hover:bg-slate-100">Закрыть ✕</button>
@@ -236,7 +237,7 @@ export default function QuestionEditor({ question, onClose, onSaved }) {
           {!isNew && (
             <button type="button" onClick={archive} disabled={busy} data-testid="archive-question"
               className={`px-3 py-2 rounded-lg text-sm ${notCovered ? "text-green-700 hover:bg-green-50" : "text-red-600 hover:bg-red-50"}`}>
-              {notCovered ? "Включить (модуль пройден)" : question.isActive === false ? "Вернуть из архива" : "В архив"}
+              {notCovered ? pendingLabel(question.topic).action : question.isActive === false ? "Вернуть из архива" : "В архив"}
             </button>
           )}
           <span className="ml-auto text-xs text-slate-400">{isNew ? "" : dirty ? `изменено полей: ${Object.keys(patch).length}` : "без изменений"}</span>

@@ -3,7 +3,7 @@ import { api } from "../utils/api";
 import QuestionDemo from "../components/questionDemo/QuestionDemo";
 import QuestionEditor from "./bank/QuestionEditor";
 import { RU_STATUS } from "./bank/bankForm";
-import { pyModule, sortTopics, topicLabel } from "../utils/tracks";
+import { pendingLabel, pyModule, sortTopics, topicLabel } from "../utils/tracks";
 
 // Просмотр банка вопросов живых собеседований (только админ): вопрос, ответ
 // для интервьюера, живая сцена и её исправление; правка, добавление, архив (этап 6).
@@ -49,7 +49,7 @@ function QuestionCard({ q, lang, onEdit, onEnable }) {
             {q.demo.audience === "interviewer" ? "сцена: только интервьюер" : "сцена: видит кандидат"}
           </span>
         )}
-        {notCovered && <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800" data-testid="card-not-covered">ещё не пройдено</span>}
+        {notCovered && <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800" data-testid="card-not-covered">{pendingLabel(q.topic).badge}</span>}
         {q.isActive === false && !q.notCovered && <span className="px-2 py-0.5 rounded-full bg-slate-800 text-white">в архиве</span>}
         {q.tests?.length > 0 && <span className="px-2 py-0.5 rounded-full bg-violet-100 text-violet-700">автотесты: {q.tests.length}</span>}
         {q.ruStatus !== "ok" && (
@@ -60,7 +60,7 @@ function QuestionCard({ q, lang, onEdit, onEnable }) {
         <span className="ml-auto" />
         {notCovered && (
           <button type="button" onClick={() => onEnable(q)} data-testid={`enable-${q.code}`}
-            className="px-3 py-1 rounded-lg text-xs font-medium text-green-700 bg-green-50 hover:bg-green-100">Включить (модуль пройден)</button>
+            className="px-3 py-1 rounded-lg text-xs font-medium text-green-700 bg-green-50 hover:bg-green-100">{pendingLabel(q.topic).action}</button>
         )}
         <button type="button" onClick={() => onEdit(q)} data-testid={`edit-${q.code}`}
           className="px-3 py-1 rounded-lg text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100">Править</button>
@@ -110,7 +110,7 @@ export default function QuestionBankView() {
   const visible = questions.filter((q) => q.isActive !== false || (q.notCovered ? showNotCovered : showArchive));
   const shown = onlyDemos ? visible.filter((q) => q.demo?.html) : visible;
   const enable = async (q) => {
-    if (!window.confirm(`Включить ${q.code}? Модуль пройден — вопрос попадёт в новые наборы.`)) return;
+    if (!window.confirm(`Включить ${q.code}? ${pendingLabel(q.topic).ask}`)) return;
     setError("");
     try {
       await api.questionBank.updateQuestion(q.code, { isActive: true });
@@ -136,7 +136,7 @@ export default function QuestionBankView() {
             <input type="checkbox" checked={showArchive} onChange={(e) => setShowArchive(e.target.checked)} /> с архивом
           </label>
           <label className="flex items-center gap-1.5 text-slate-600" title="Вопросы модулей, которые группа ещё не прошла (неактивны)">
-            <input type="checkbox" checked={showNotCovered} onChange={(e) => setShowNotCovered(e.target.checked)} data-testid="show-not-covered" /> ещё не пройденные
+            <input type="checkbox" checked={showNotCovered} onChange={(e) => setShowNotCovered(e.target.checked)} data-testid="show-not-covered" /> ещё не включённые
           </label>
           <label className="flex items-center gap-1.5 text-slate-600">
             <input type="checkbox" checked={onlyDemos} onChange={(e) => setOnlyDemos(e.target.checked)} /> только со сценами
@@ -162,7 +162,7 @@ export default function QuestionBankView() {
               <button key={t} type="button" onClick={() => setTopic(t)}
                 className={`px-3 py-1.5 rounded-lg text-sm border ${t === topic ? "bg-slate-900 text-white border-slate-900" : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"}`}>
                 {topicLabel(t, stats?.topicLabels)} {stats?.topics?.[t] ? <span className="opacity-60">{stats.topics[t]}</span> : null}
-                {stats?.notCovered?.[t] ? <span className="opacity-60" title="ещё не пройдено"> +{stats.notCovered[t]}</span> : null}
+                {stats?.notCovered?.[t] ? <span className="opacity-60" title={pendingLabel(t).badge}> +{stats.notCovered[t]}</span> : null}
               </button>
             ))}
           </div>
