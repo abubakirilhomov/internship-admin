@@ -20,7 +20,7 @@ export default function ScoreCard({ score }) {
         <div className="absolute -top-1 h-4 w-0.5 bg-slate-700" style={{ left: `${score?.threshold ?? 80}%` }} />
       </div>
       <p className="mt-1 text-[11px] text-slate-400">
-        Вес: oson {w.oson ?? 1} · o'rta {w.orta ?? 2} · qiyin {w.qiyin ?? 3}. Неоценённые не входят.
+        Вес: oson {w.oson ?? 1} · o'rta {w.orta ?? 2} · qiyin {w.qiyin ?? 3}. % от открытых кандидату: открытый без оценки = 0, неоткрытые не входят.
       </p>
     </div>
   );
