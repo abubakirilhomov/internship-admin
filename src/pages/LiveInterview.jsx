@@ -40,7 +40,9 @@ export default function LiveInterview() {
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open?.code, !!view]);
-  useEffect(() => { if (view && !lang) setLang(view.language || "uz"); }, [view, lang]);
+  // Язык текста вопроса следует за языком кандидата (его выбор приходит в опросе);
+  // ручной переключатель UZ/RU действует до его следующей смены.
+  useEffect(() => { if (view?.language) setLang(view.language); }, [view?.language]);
 
   const question = useMemo(() => view?.questions.find((q) => q.code === selected) || null, [view, selected]);
 
