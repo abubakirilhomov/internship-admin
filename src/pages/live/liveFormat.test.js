@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import {
   fmtClock, fmtDuration, answerStatus, foldSignals, signalLine, signalSummary, signalTone, credentialsText,
   splitBlocks, nextHidden, withDrafts, composition, compositionText, accessState, pluralOpen, windowText,
-  overlapText, overlapCellClass, SIZE_OPTIONS,
+  overlapText, overlapCellClass, SIZE_OPTIONS, retakeAdvice, RETAKE_GENERATE_GAP,
 } from "./liveFormat.js";
 
 test("fmtClock показывает время по Ташкенту (UTC+5)", () => {
@@ -110,4 +110,16 @@ test("overlapCellClass: нет общих — зелёный, мало — жё�
 
 test("размеры собеседования 15–20", () => {
   assert.deepEqual(SIZE_OPTIONS, [15, 16, 17, 18, 19, 20]);
+});
+
+test("пересдача: генерация по умолчанию, только если она лучше готовых на 3+ пересечения", () => {
+  assert.equal(RETAKE_GENERATE_GAP, 3);
+  const sets = [{ overlap: 6 }, { overlap: 4 }, { overlap: 9 }];
+  const a = retakeAdvice({ retake: true, sets, preview: { overlap: 1 } });
+  assert.deepEqual([a.best, a.generated], [4, 1]);
+  assert.match(a.text, /1 пересечение с прошлой попыткой, у лучшего готового — 4 пересечения/);
+  assert.equal(retakeAdvice({ retake: true, sets, preview: { overlap: 2 } }), null); // разница 2
+  assert.equal(retakeAdvice({ retake: false, sets, preview: { overlap: 0 } }), null); // не пересдача
+  assert.equal(retakeAdvice({ retake: true, sets, preview: { overlap: 0, violations: ["x"] } }), null); // генерация с нарушением
+  assert.equal(retakeAdvice({ retake: true, sets, preview: null }), null);
 });

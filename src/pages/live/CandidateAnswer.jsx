@@ -1,5 +1,35 @@
-import React, { useEffect, useState } from "react";
+import React, { Suspense, lazy, useEffect, useState } from "react";
 import { RESULT_KEYS, RESULT_META, answerStatus, withDrafts } from "./liveFormat";
+import { canRun } from "../../components/codeSandbox/runnable";
+
+// Песочница — отдельным чанком: нужна только на amaliy-вопросах web/js.
+const AnswerRunner = lazy(() => import("../../components/codeSandbox/AnswerRunner"));
+
+// Во весь экран: код слева, результат и консоль справа — крупнее, чем в колонке.
+function RunnerOverlay({ question, code, onClose }) {
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-6" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-7xl max-h-full overflow-auto p-5" onClick={(e) => e.stopPropagation()}
+        role="dialog" aria-modal="true" aria-label="Ответ кандидата во весь экран">
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-sm font-semibold text-slate-700">Ответ кандидата · <span className="font-mono">{question.code}</span></p>
+          <button type="button" onClick={onClose} className="px-3 py-1 rounded-lg text-sm text-slate-600 hover:bg-slate-100">Закрыть ✕</button>
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <pre className="text-sm font-mono bg-slate-50 border border-slate-100 rounded-lg p-3 text-slate-700 max-h-[70vh] overflow-auto whitespace-pre">{code}</pre>
+          <Suspense fallback={<div className="h-96 rounded-lg bg-slate-100 animate-pulse" />}>
+            <AnswerRunner editor={question.editor} code={code} previewHeight={420} consoleClass="max-h-56" />
+          </Suspense>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 // Ответ кандидата (приходит опросом), оценка ✓ ½ ✗ и заметка. Сохраняется сразу.
 export default function CandidateAnswer({ question, drafts, onRate, offline, lang }) {
@@ -18,6 +48,8 @@ export default function CandidateAnswer({ question, drafts, onRate, offline, lan
   const opt = question.answerKind === "choice" && answer?.text
     ? (question.options || []).find((o) => o.key === answer.text) : null;
   const optText = opt ? ((lang === "ru" && opt.textRu) || opt.text) : "";
+  const runnable = canRun(question.editor) && question.answerKind !== "choice";
+  const [full, setFull] = useState(false);
 
   return (
     <div className="bg-white rounded-2xl shadow p-4">
@@ -43,6 +75,16 @@ export default function CandidateAnswer({ question, drafts, onRate, offline, lan
             <pre className="text-sm font-mono bg-slate-50 border border-slate-100 rounded-lg p-3 text-slate-700 min-h-24 max-h-64 overflow-auto whitespace-pre-wrap break-words">
               {answer?.text || ""}
             </pre>
+          )}
+          {runnable && answer?.text && (
+            <div className="mt-3">
+              <Suspense fallback={<div className="h-48 rounded-lg bg-slate-100 animate-pulse" />}>
+                <AnswerRunner editor={question.editor} code={answer.text} />
+              </Suspense>
+              <button type="button" onClick={() => setFull(true)}
+                className="mt-1 text-xs text-blue-600 hover:underline">Во весь экран</button>
+              {full && <RunnerOverlay question={question} code={answer.text} onClose={() => setFull(false)} />}
+            </div>
           )}
           {!typing ? <p className="text-xs text-slate-400 mt-1">{st.text}</p>
             : !answer?.submittedAt && <p className="text-xs text-slate-400 mt-1">Ещё не отправлен</p>}

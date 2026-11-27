@@ -4,7 +4,7 @@ import { X, ChevronDown, ChevronUp } from "lucide-react";
 import { api } from "../../utils/api";
 import {
   BANK_TRACKS, LEVELS, LEVEL_ORDER, composition, compositionText, expectedText, fmtClock, fmtShortDate,
-  questionShort, SIZE_OPTIONS, overlapText,
+  questionShort, SIZE_OPTIONS, overlapText, retakeAdvice,
 } from "../../pages/live/liveFormat";
 
 const radio = (on) => (
@@ -58,11 +58,13 @@ export default function StartLiveModal({ interview, modes, onClose, onStarted })
   const [bank, setBank] = useState([]);
   const [showList, setShowList] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [touched, setTouched] = useState(false); // интервьюер сам выбрал вариант — совет не перебивает
+  const pick = (c) => { setTouched(true); setChoice(c); };
 
   // Наборы направления + вопросы банка (для состава и просмотра).
   useEffect(() => {
     let cancelled = false;
-    setLoading(true); setError(""); setPreview(null); setChoice("suggested"); setShowList(false);
+    setLoading(true); setError(""); setPreview(null); setChoice("suggested"); setShowList(false); setTouched(false);
     (async () => {
       try {
         const [s, q] = await Promise.all([
@@ -101,10 +103,14 @@ export default function StartLiveModal({ interview, modes, onClose, onStarted })
       setPreviewing(false);
     }
   };
+  // При пересдаче генерацию считаем сразу — чтобы сравнить с готовыми наборами.
+  const retakeNow = !!data?.retake?.isRetake;
   useEffect(() => {
-    if (choice === "generate" && !preview && !previewing && data) runPreview();
+    if ((choice === "generate" || retakeNow) && !preview && !previewing && data && data.mode === "live") runPreview();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [choice, data, size]);
+  const advice = useMemo(() => retakeAdvice({ retake: retakeNow, sets: data?.sets, preview }), [retakeNow, data, preview]);
+  useEffect(() => { if (advice && !touched) setChoice("generate"); }, [advice, touched]);
 
   const chosenCodes = choice === "suggested" ? suggested?.questionCodes
     : choice === "other" ? other?.questionCodes
@@ -180,11 +186,12 @@ export default function StartLiveModal({ interview, modes, onClose, onStarted })
               <div className="space-y-2">
                 {retake && (
                   <p className="text-xs text-blue-700 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
-                    Пересдача: прошлых вопросов кандидата — {data.retake.priorQuestions}. Предложен набор с наименьшим пересечением.
+                    Пересдача: прошлых вопросов кандидата — {data.retake.priorQuestions}.{" "}
+                    {advice ? advice.text : "Предложен набор с наименьшим пересечением."}
                   </p>
                 )}
                 {suggested && (
-                  <button type="button" onClick={() => setChoice("suggested")}
+                  <button type="button" onClick={() => pick("suggested")}
                     className={`w-full flex gap-3 p-3 rounded-lg border text-left ${choice === "suggested" ? "border-blue-400 bg-blue-50/50" : "border-slate-200"}`}>
                     {radio(choice === "suggested")}
                     <span className="text-sm">
@@ -195,8 +202,8 @@ export default function StartLiveModal({ interview, modes, onClose, onStarted })
                     </span>
                   </button>
                 )}
-                <div role="button" tabIndex={0} onClick={() => setChoice("generate")}
-                  onKeyDown={(e) => { if (e.key === "Enter") setChoice("generate"); }}
+                <div role="button" tabIndex={0} onClick={() => pick("generate")}
+                  onKeyDown={(e) => { if (e.key === "Enter") pick("generate"); }}
                   className={`w-full flex gap-3 p-3 rounded-lg border text-left cursor-pointer ${choice === "generate" ? "border-blue-400 bg-blue-50/50" : "border-slate-200"}`}>
                   {radio(choice === "generate")}
                   <span className="text-sm flex-1">
@@ -204,7 +211,7 @@ export default function StartLiveModal({ interview, modes, onClose, onStarted })
                     <span className="text-xs text-slate-500">без вопросов трёх прошлых собеседований{retake ? " и прошлой попытки кандидата" : ""}</span>
                   <label className="mt-2 flex items-center gap-1.5 text-xs text-slate-500" onClick={(e) => e.stopPropagation()}>
                     Вопросов
-                    <select value={size} aria-label="Количество вопросов" onChange={(e) => { setSize(Number(e.target.value)); setPreview(null); setChoice("generate"); }}
+                    <select value={size} aria-label="Количество вопросов" onChange={(e) => { setSize(Number(e.target.value)); setPreview(null); pick("generate"); }}
                       className="px-2 py-1 rounded-lg border border-slate-200 text-xs bg-white focus:outline-none focus:border-blue-400">
                       {SIZE_OPTIONS.map((n) => <option key={n} value={n}>{n}</option>)}
                     </select>
@@ -213,10 +220,10 @@ export default function StartLiveModal({ interview, modes, onClose, onStarted })
                 </div>
                 {sets.length > 1 && (
                   <div className={`flex gap-3 p-3 rounded-lg border items-center ${choice === "other" ? "border-blue-400 bg-blue-50/50" : "border-slate-200"}`}
-                    onClick={() => setChoice("other")}>
+                    onClick={() => pick("other")}>
                     {radio(choice === "other")}
                     <span className="text-sm text-slate-900 flex-1">Выбрать другой</span>
-                    <select value={otherId} onChange={(e) => { setOtherId(e.target.value); setChoice("other"); }}
+                    <select value={otherId} onChange={(e) => { setOtherId(e.target.value); pick("other"); }}
                       className="px-2 py-1 rounded-lg border border-slate-200 text-xs bg-white focus:outline-none focus:border-blue-400">
                       {sets.filter((s) => s._id !== data.suggestedSetId).map((s) => (
                         <option key={s._id} value={s._id}>№{s.number} · {s.size} в. · {s.lastUsedAt ? fmtShortDate(s.lastUsedAt) : "новый"}{retake ? ` · ${overlapText(s.overlap || 0)}` : ""}</option>

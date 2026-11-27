@@ -8,9 +8,10 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test": "node --test src/components/questionDemo/ src/pages/live/"
+    "test": "node --test src/components/questionDemo/ src/components/codeSandbox/ src/pages/live/"
   },
   "dependencies": {
+    "@lezer/javascript": "^1.5.7",
     "axios": "^1.11.0",
     "chart.js": "^4.5.0",
     "daisyui": "^5.0.50",
