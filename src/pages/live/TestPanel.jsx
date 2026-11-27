@@ -47,7 +47,7 @@ export default function TestPanel({ tests, editor, code, lang = "ru" }) {
         {(done ? res.results : tests.map((t) => ({ name: nameOf(t, lang) }))).map((r, i) => (
           <li key={i} className="flex gap-2">
             <span className={done ? (r.ok ? "text-green-600" : "text-red-600") : "text-slate-300"} aria-hidden="true">
-              {done ? (r.ok ? "✓" : "✖") : "○"}
+              {done ? (r.ok ? "✓" : "✕") : "○"}
             </span>
             <span className="min-w-0">
               <span className="text-slate-700">{r.name}</span>
