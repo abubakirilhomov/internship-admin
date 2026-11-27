@@ -33,6 +33,7 @@ import Interviews from "./pages/Interviews";
 import LiveInterview from "./pages/LiveInterview";
 import InterviewBank from "./pages/InterviewBank";
 import QuestionBankView from "./pages/QuestionBankView";
+import InterviewSets from "./pages/InterviewSets";
 import MarsIdReturn from "./pages/MarsIdReturn";
 import ReceptionBadges from "./pages/ReceptionBadges";
 import BadgeReport from "./pages/BadgeReport";
@@ -282,6 +283,16 @@ function App() {
                 <ProtectedRoute>
                   <Layout>
                     <QuestionBankView />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/interview-sets"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <InterviewSets />
                   </Layout>
                 </ProtectedRoute>
               }

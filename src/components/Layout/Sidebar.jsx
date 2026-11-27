@@ -51,6 +51,7 @@ const SECTIONS = [
       { name: 'Критерии оценки', href: '/lesson-criteria', icon: ListChecks },
       { name: 'Банк вопросов', href: '/interview-bank', icon: ListChecks },
       { name: 'Вопросы и сцены', href: '/question-bank', icon: ListChecks },
+      { name: 'Наборы', href: '/interview-sets', icon: ListChecks },
       { name: 'Настройки', href: '/settings', icon: Settings },
     ],
   },

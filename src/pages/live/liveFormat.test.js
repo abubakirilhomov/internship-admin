@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   fmtClock, fmtDuration, answerStatus, foldSignals, signalLine, signalSummary, signalTone, credentialsText,
   splitBlocks, nextHidden, withDrafts, composition, compositionText, accessState, pluralOpen, windowText,
+  overlapText, overlapCellClass, SIZE_OPTIONS,
 } from "./liveFormat.js";
 
 test("fmtClock показывает время по Ташкенту (UTC+5)", () => {
@@ -90,4 +91,23 @@ test("pluralOpen", () => {
   assert.equal(pluralOpen(3), "открытых вопроса");
   assert.equal(pluralOpen(5), "открытых вопросов");
   assert.equal(pluralOpen(11), "открытых вопросов");
+});
+
+test("overlapText: склонение", () => {
+  assert.equal(overlapText(0), "0 пересечений");
+  assert.equal(overlapText(1), "1 пересечение");
+  assert.equal(overlapText(3), "3 пересечения");
+  assert.equal(overlapText(11), "11 пересечений");
+  assert.equal(overlapText(22), "22 пересечения");
+});
+
+test("overlapCellClass: нет общих — зелёный, мало — жёлтый, много — красный, диагональ — серая", () => {
+  assert.match(overlapCellClass(0, 18, 18, false), /green/);
+  assert.match(overlapCellClass(2, 18, 18, false), /yellow/);
+  assert.match(overlapCellClass(9, 18, 18, false), /red/);
+  assert.match(overlapCellClass(18, 18, 18, true), /slate/);
+});
+
+test("размеры собеседования 15–20", () => {
+  assert.deepEqual(SIZE_OPTIONS, [15, 16, 17, 18, 19, 20]);
 });
