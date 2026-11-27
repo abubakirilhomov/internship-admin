@@ -44,7 +44,8 @@ export default function CandidateAnswer({ question, drafts, onRate, offline, lan
               {answer?.text || ""}
             </pre>
           )}
-          {!typing && <p className="text-xs text-slate-400 mt-1">{st.text}</p>}
+          {!typing ? <p className="text-xs text-slate-400 mt-1">{st.text}</p>
+            : !answer?.submittedAt && <p className="text-xs text-slate-400 mt-1">Ещё не отправлен</p>}
         </>
       )}
       <div className="mt-3 flex items-center gap-2">

@@ -16,7 +16,7 @@ export default function FinishModal({ view, saving, onCancel, onConfirm }) {
         <div className="p-5 space-y-3 text-sm text-slate-700">
           <p>
             Открыто {shown} из {total}.
-            {open > 0 && <> <span className="text-red-600">{open} {pluralOpen(open)} без оценки</span> — в балл не войдут.</>}
+            {open > 0 && <> <span className="text-red-600">{open} {pluralOpen(open)} без оценки</span> — считаются как 0.</>}
           </p>
           <p className={`font-semibold ${score?.passed ? "text-green-600" : "text-red-600"}`}>
             {score?.percentage}% · {score?.earned} / {score?.total} · {score?.passed ? `проходит (порог ${score?.threshold}%)` : `не проходит (порог ${score?.threshold}%)`}
