@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-  ACTIVE_TRACKS, SPHERE_LABELS, trackLabel, sphereToTrack, trackOptions, topicLabel, sortTopics, pyModule, TOPIC_LABELS,
+  ACTIVE_TRACKS, SPHERE_LABELS, trackLabel, sphereToTrack, trackOptions, topicLabel, sortTopics, pyModule, TOPIC_LABELS, pendingLabel,
 } from "./tracks.js";
 
 test("направления: в выборе ровно три (JS · React, JS · Vue, Python), backend-nodejs — архив", () => {
@@ -46,4 +46,10 @@ test("подписи тем: с бэка для модулей Python, инач�
   assert.equal(topicLabel("database", { database: { uz: "Boshqa", ru: "Другое" } }), "Базы данных");
   assert.equal(topicLabel("new-topic", { "new-topic": { ru: "Новая" } }), "Новая");
   assert.equal(topicLabel("nope"), "nope");
+});
+
+test("неактивный «ждёт включения»: у модулей Python — «ещё не пройдено», у Node — «не включён»", () => {
+  assert.equal(pendingLabel("py-m5").badge, "ещё не пройдено");
+  assert.equal(pendingLabel("node").badge, "не включён");
+  assert.equal(pendingLabel("node").action, "Включить");
 });

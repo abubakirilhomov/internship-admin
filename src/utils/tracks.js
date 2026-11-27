@@ -64,6 +64,12 @@ export const pyModule = (topic) => {
   return m ? Number(m[1]) : null;
 };
 
+// Неактивный вопрос «ждёт включения» (notCovered): у модулей Python — модуль ещё не пройден,
+// у остальных тем (банк Node.js до решения владельца) — вопрос просто ещё не включён.
+export const pendingLabel = (topic) => (pyModule(topic) != null
+  ? { badge: "ещё не пройдено", action: "Включить (модуль пройден)", ask: "Модуль пройден — вопрос попадёт в новые наборы." }
+  : { badge: "не включён", action: "Включить", ask: "Вопрос попадёт в генератор и новые наборы." });
+
 // Подпись темы. serverLabels — stats.topicLabels / rules.topics ({topic: {uz, ru}}): берётся для тем
 // вне JS-карты (модули Python и будущие); JS-темы остаются с привычными русскими подписями.
 export function topicLabel(topic, serverLabels) {
