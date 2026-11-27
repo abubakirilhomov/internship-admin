@@ -686,6 +686,26 @@ export const api = {
       return response.json();
     },
   },
+  // Банк вопросов живых собеседований (int-server /question-bank, только админ).
+  questionBank: {
+    stats: async () => {
+      const response = await fetch(`${API_BASE_URL}/question-bank/stats`, { headers: getAuthHeaders() });
+      if (!response.ok) throw new Error(await response.text());
+      return response.json();
+    },
+    questions: async (params = {}) => {
+      const qs = new URLSearchParams();
+      Object.entries(params).forEach(([k, v]) => {
+        if (v !== undefined && v !== null && v !== "") qs.append(k, v);
+      });
+      const q = qs.toString();
+      const response = await fetch(`${API_BASE_URL}/question-bank/questions${q ? `?${q}` : ""}`, {
+        headers: getAuthHeaders(),
+      });
+      if (!response.ok) throw new Error(await response.text());
+      return response.json();
+    },
+  },
   interviewTopics: {
     getAll: async (params = {}) => {
       const qs = new URLSearchParams();
