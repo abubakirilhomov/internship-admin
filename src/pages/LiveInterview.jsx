@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { Suspense, lazy, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { toast, ToastContainer } from "react-toastify";
 import { ArrowLeft, Flag, KeyRound, WifiOff, Clock } from "lucide-react";
@@ -12,7 +12,10 @@ import SignalsList from "./live/SignalsList";
 import FinishModal from "./live/FinishModal";
 import CandidateAccessModal from "../components/interviews/CandidateAccessModal";
 import InterviewResultModal from "../components/interviews/InterviewResult";
-import { TRACK_FULL, accessState, fmtClock, fmtDuration, openQuestion } from "./live/liveFormat";
+import { TRACK_FULL, accessState, fmtClock, fmtDuration, openQuestion, warmupEditor } from "./live/liveFormat";
+
+// Прогрев бандлера Sandpack (холодная загрузка превью React/Vue — до 5,6 с): пока идёт собеседование.
+const SandpackWarmup = lazy(() => import("../components/codeSandbox/SandpackAnswerRunner").then((m) => ({ default: m.SandpackWarmup })));
 
 // Живой экран интервьюера (/interviews/:id/live): без сайдбара, три колонки.
 export default function LiveInterview() {
@@ -26,6 +29,7 @@ export default function LiveInterview() {
   const [finishing, setFinishing] = useState(false);
   const [creds, setCreds] = useState(null);
   const [result, setResult] = useState(null);
+  const [warmed, setWarmed] = useState(false);
 
   useEffect(() => { const t = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(t); }, []);
 
@@ -213,6 +217,11 @@ export default function LiveInterview() {
       {result && (
         <InterviewResultModal name={name} trackLabel={TRACK_FULL[view.track]} result={result.result} letter={result.letter}
           onSaved={() => {}} onClose={() => navigate("/interviews")} />
+      )}
+      {!warmed && !ended && warmupEditor(view.questions) && (
+        <Suspense fallback={null}>
+          <SandpackWarmup editor={warmupEditor(view.questions)} onDone={() => setWarmed(true)} />
+        </Suspense>
       )}
       <ToastContainer position="top-right" />
     </Shell>

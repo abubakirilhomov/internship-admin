@@ -274,3 +274,12 @@ export function overlapCellClass(n, a, b, isDiagonal) {
   if (share < 0.25) return "bg-yellow-100 text-yellow-700";
   return "bg-red-100 text-red-700";
 }
+
+// Какой шаблон Sandpack прогреть на живом экране: vue и tailwind делят бандлер и пакеты
+// (грузим vue + Tailwind), React — свой. null — Sandpack-вопросов нет.
+export function warmupEditor(questions = []) {
+  const eds = new Set(questions.map((q) => q.editor));
+  if (eds.has("tailwind") || eds.has("vue")) return "tailwind";
+  if (eds.has("jsx")) return "jsx";
+  return null;
+}

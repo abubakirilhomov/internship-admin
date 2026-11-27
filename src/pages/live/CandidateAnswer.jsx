@@ -1,9 +1,12 @@
 import React, { Suspense, lazy, useEffect, useState } from "react";
 import { RESULT_KEYS, RESULT_META, answerStatus, withDrafts } from "./liveFormat";
-import { canRun } from "../../components/codeSandbox/runnable";
+import { canRun, usesSandpack } from "../../components/codeSandbox/runnable";
 
 // Песочница — отдельным чанком: нужна только на amaliy-вопросах web/js.
 const AnswerRunner = lazy(() => import("../../components/codeSandbox/AnswerRunner"));
+// React / Vue / Tailwind — бандлер CodeSandbox (Sandpack), отдельный чанк.
+const SandpackAnswerRunner = lazy(() => import("../../components/codeSandbox/SandpackAnswerRunner"));
+const Runner = (props) => (usesSandpack(props.editor) ? <SandpackAnswerRunner {...props} /> : <AnswerRunner {...props} />);
 
 // Во весь экран: код слева, результат и консоль справа — крупнее, чем в колонке.
 function RunnerOverlay({ question, code, onClose }) {
@@ -23,7 +26,7 @@ function RunnerOverlay({ question, code, onClose }) {
         <div className="grid grid-cols-2 gap-4">
           <pre className="text-sm font-mono bg-slate-50 border border-slate-100 rounded-lg p-3 text-slate-700 max-h-[70vh] overflow-auto whitespace-pre">{code}</pre>
           <Suspense fallback={<div className="h-96 rounded-lg bg-slate-100 animate-pulse" />}>
-            <AnswerRunner editor={question.editor} code={code} previewHeight={420} consoleClass="max-h-56" />
+            <Runner editor={question.editor} code={code} previewHeight={420} consoleClass="max-h-56" />
           </Suspense>
         </div>
       </div>
@@ -79,7 +82,7 @@ export default function CandidateAnswer({ question, drafts, onRate, offline, lan
           {runnable && answer?.text && (
             <div className="mt-3">
               <Suspense fallback={<div className="h-48 rounded-lg bg-slate-100 animate-pulse" />}>
-                <AnswerRunner editor={question.editor} code={answer.text} />
+                <Runner editor={question.editor} code={answer.text} />
               </Suspense>
               <button type="button" onClick={() => setFull(true)}
                 className="mt-1 text-xs text-blue-600 hover:underline">Во весь экран</button>
