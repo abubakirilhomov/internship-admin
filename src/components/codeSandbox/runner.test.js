@@ -60,8 +60,8 @@ test("язык служебных сообщений", () => {
   assert.match(buildRunDoc({ editor: "js", lang: "uz" }), /to'xtatildi/);
 });
 
-test("canRun: превью только для web и js", () => {
-  assert.deepEqual(["web", "js", "jsx", "vue", "html", "node", undefined].map(canRun), [true, true, false, false, false, false, false]);
+test("canRun: web/js — свой раннер, jsx/vue/tailwind — Sandpack; html/node без превью", () => {
+  assert.deepEqual(["web", "js", "jsx", "vue", "tailwind", "html", "node", undefined].map(canRun), [true, true, true, true, true, false, false, false]);
 });
 
 test("protectLoops: сторож в теле каждого цикла, строки не сдвигаются", () => {

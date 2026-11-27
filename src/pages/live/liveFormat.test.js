@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import {
   fmtClock, fmtDuration, answerStatus, foldSignals, signalLine, signalSummary, signalTone, credentialsText,
   splitBlocks, nextHidden, withDrafts, composition, compositionText, accessState, pluralOpen, windowText,
-  overlapText, overlapCellClass, SIZE_OPTIONS, retakeAdvice, RETAKE_GENERATE_GAP,
+  overlapText, overlapCellClass, SIZE_OPTIONS, retakeAdvice, RETAKE_GENERATE_GAP, warmupEditor,
 } from "./liveFormat.js";
 
 test("fmtClock показывает время по Ташкенту (UTC+5)", () => {
@@ -122,4 +122,12 @@ test("пересдача: генерация по умолчанию, тольк
   assert.equal(retakeAdvice({ retake: false, sets, preview: { overlap: 0 } }), null); // не пересдача
   assert.equal(retakeAdvice({ retake: true, sets, preview: { overlap: 0, violations: ["x"] } }), null); // генерация с нарушением
   assert.equal(retakeAdvice({ retake: true, sets, preview: null }), null);
+});
+
+test("warmupEditor: vue/tailwind → общий шаблон, jsx → react, иначе нет", () => {
+  assert.equal(warmupEditor([{ editor: "web" }, { editor: "vue" }]), "tailwind");
+  assert.equal(warmupEditor([{ editor: "tailwind" }, { editor: "jsx" }]), "tailwind");
+  assert.equal(warmupEditor([{ editor: "js" }, { editor: "jsx" }]), "jsx");
+  assert.equal(warmupEditor([{ editor: "js" }, { editor: null }]), null);
+  assert.equal(warmupEditor(), null);
 });

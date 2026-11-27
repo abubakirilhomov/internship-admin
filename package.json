@@ -11,6 +11,7 @@
     "test": "node --test src/components/questionDemo/ src/components/codeSandbox/ src/pages/live/"
   },
   "dependencies": {
+    "@codesandbox/sandpack-react": "2.20.0",
     "@lezer/javascript": "^1.5.7",
     "axios": "^1.11.0",
     "chart.js": "^4.5.0",
