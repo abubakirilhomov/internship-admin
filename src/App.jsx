@@ -31,6 +31,7 @@ import Applications from "./pages/Applications";
 import InternRequests from "./pages/InternRequests";
 import Interviews from "./pages/Interviews";
 import InterviewBank from "./pages/InterviewBank";
+import QuestionBankView from "./pages/QuestionBankView";
 import MarsIdReturn from "./pages/MarsIdReturn";
 import ReceptionBadges from "./pages/ReceptionBadges";
 import BadgeReport from "./pages/BadgeReport";
@@ -262,6 +263,16 @@ function App() {
                 <ProtectedRoute>
                   <Layout>
                     <InterviewBank />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/question-bank"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <QuestionBankView />
                   </Layout>
                 </ProtectedRoute>
               }
