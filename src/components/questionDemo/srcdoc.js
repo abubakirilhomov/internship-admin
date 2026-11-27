@@ -27,6 +27,12 @@ export function safeJson(value) {
     .replace(/\u2029/g, "\\u2029");
 }
 
+// Код библиотеки внутри <script>: ни "</script", ни "<!--" (особые состояния
+// HTML-парсера внутри script) не должны встретиться в тексте как есть.
+export function safeScript(code) {
+  return String(code || "").replace(/<\/(script)/gi, "<\\/$1").replace(/<!--/g, "<\\!--");
+}
+
 // CSS внутри <style>: автор не должен закрыть тег.
 export function safeCss(css) {
   return String(css || "").replace(/<\/style/gi, "<\\/style");
@@ -54,13 +60,15 @@ export function localizedCaption(variant, lang) {
   return (lang === "ru" && variant.captionRu) || variant.caption || variant.captionRu || "";
 }
 
-export function buildSrcdoc({ html = "", css = "", steps = [], autoplay = false } = {}) {
+// runtimeCode — библиотека сцены (runtimes.js), идёт в <head> до html автора.
+export function buildSrcdoc({ html = "", css = "", steps = [], autoplay = false, runtimeCode = "" } = {}) {
   const cfg = { steps: Array.isArray(steps) ? steps : [], autoplay: !!autoplay };
   return (
     "<!doctype html><html><head>" +
     `<meta http-equiv="Content-Security-Policy" content="${CSP}">` +
     '<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' +
     `<style>${BASE_CSS}</style><style>${safeCss(css)}</style>` +
+    (runtimeCode ? `<script>${safeScript(runtimeCode)}</script>` : "") +
     "</head><body>" +
     String(html || "") +
     `<script type="application/json" id="__demo_cfg">${safeJson(cfg)}</script>` +

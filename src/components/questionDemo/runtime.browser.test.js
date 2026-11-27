@@ -122,3 +122,61 @@ test("3D-слои: уровни по реальному порядку отри�
   assert.deepEqual(order, ["A", "menu", "B"]);
   await page.close();
 });
+
+// ── runtime react | vue: та же библиотека, что вставляет runtimes.js (файлы из node_modules) ──
+import fs from "node:fs";
+import path from "node:path";
+const req = createRequire(import.meta.url);
+const libFile = (pkg, file) => fs.readFileSync(path.join(path.dirname(req.resolve(`${pkg}/package.json`)), file), "utf8");
+const RUNTIME = {
+  react: () => `${libFile("react", "umd/react.production.min.js")}\n;${libFile("react-dom", "umd/react-dom.production.min.js")}`,
+  vue: () => libFile("vue", "dist/vue.runtime.global.prod.js"),
+};
+const probeNet = () => `<script>
+  fetch("http://127.0.0.1:${port}/lib").catch(()=>{});
+  let r = [];
+  try { r.push(parent.document.title); } catch (e) { r.push("blocked"); }
+  try { r.push(localStorage.length); } catch (e) { r.push("nostorage"); }
+  parent.postMessage({ __demo: true, type: "probe", r }, "*");
+</script>`;
+
+test("runtime react: компонент рендерится, клик меняет state; сеть и родитель закрыты", { skip }, async () => {
+  hits = 0;
+  const { page, frame } = await mount({
+    runtimeCode: RUNTIME.react(),
+    html: `<div id="app"></div><script>
+      const e = React.createElement;
+      function App() { const [n, setN] = React.useState(0); return e("button", { id: "b", onClick: () => setN((x) => x + 1) }, "n=" + n); }
+      ReactDOM.createRoot(document.getElementById("app")).render(e(App));
+    </script>${probeNet()}`,
+    steps: [{ type: "wait", ms: 100 }, { type: "click", target: "#b" }, { type: "click", target: "#b" }],
+    autoplay: true,
+  });
+  await waitMsg(page, "done");
+  assert.equal(await frame.$eval("#b", (b) => b.textContent), "n=2");
+  assert.equal(await frame.evaluate(() => React.version), "18.3.1");
+  await waitMsg(page, "probe");
+  assert.deepEqual(await page.evaluate(() => window.msgs.find((m) => m.type === "probe").r), ["blocked", "nostorage"]);
+  await page.waitForTimeout(300);
+  assert.equal(hits, 0);
+  await page.close();
+});
+
+test("runtime vue: h() + ref, клик реактивен; шаблоны без компилятора не нужны", { skip }, async () => {
+  hits = 0;
+  const { page, frame } = await mount({
+    runtimeCode: RUNTIME.vue(),
+    html: `<div id="app"></div><script>
+      const { createApp, ref, h } = Vue;
+      createApp({ setup() { const n = ref(0); return () => h("button", { id: "b", onClick: () => n.value++ }, "n=" + n.value); } }).mount("#app");
+    </script>${probeNet()}`,
+    steps: [{ type: "wait", ms: 100 }, { type: "click", target: "#b" }],
+    autoplay: true,
+  });
+  await waitMsg(page, "done");
+  assert.equal(await frame.$eval("#b", (b) => b.textContent), "n=1");
+  await waitMsg(page, "probe");
+  assert.deepEqual(await page.evaluate(() => window.msgs.find((m) => m.type === "probe").r), ["blocked", "nostorage"]);
+  assert.equal(hits, 0);
+  await page.close();
+});

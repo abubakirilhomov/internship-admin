@@ -1,12 +1,14 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Play, RotateCcw, Layers, Wrench, Smartphone, Monitor } from "lucide-react";
 import { SANDBOX, SLIDER, buildSrcdoc, clampWidth, fitScale, localizedCaption, resolveVariant } from "./srcdoc";
+import { loadRuntime } from "./runtimes";
 
 // Живая сцена под вопросом. Один компонент для админки и (позже) приложения
 // кандидата. `fix` передаётся ТОЛЬКО интервьюеру — кандидатский API его не
 // отдаёт (int-server serializers/candidateView), а без fix кнопки нет.
 //
-// demo: { html, css, steps, caption, captionRu, height, width, slider, layers3d }
+// demo: { html, css, steps, caption, captionRu, height, width, slider, layers3d, runtime }
+// runtime (react | vue) — библиотека подгружается лениво из своего бандла (runtimes.js).
 export default function QuestionDemo({ demo, fix = null, lang = "uz" }) {
   const wrapRef = useRef(null);
   const frameRef = useRef(null);
@@ -17,13 +19,26 @@ export default function QuestionDemo({ demo, fix = null, lang = "uz" }) {
   const [status, setStatus] = useState("idle"); // idle | playing | done
   const [layers, setLayers] = useState(false);
 
+  const runtimeName = demo?.runtime || "";
+  const [runtime, setRuntime] = useState({ name: "", code: "", error: "" });
+  useEffect(() => {
+    if (!runtimeName) return undefined;
+    let off = false;
+    loadRuntime(runtimeName)
+      .then((code) => { if (!off) setRuntime({ name: runtimeName, code, error: "" }); })
+      .catch((e) => { if (!off) setRuntime({ name: runtimeName, code: "", error: e.message || "ошибка" }); });
+    return () => { off = true; };
+  }, [runtimeName]);
+  const runtimeCode = runtimeName && runtime.name === runtimeName ? runtime.code : "";
+  const runtimeReady = !runtimeName || !!runtimeCode;
+
   const variant = useMemo(() => resolveVariant(demo, fix, showFix), [demo, fix, showFix]);
   const steps = variant?.steps || [];
   const srcDoc = useMemo(
-    () => (variant ? buildSrcdoc({ html: variant.html, css: variant.css, steps, autoplay: run.autoplay }) : ""),
+    () => (variant && runtimeReady ? buildSrcdoc({ html: variant.html, css: variant.css, steps, autoplay: run.autoplay, runtimeCode }) : ""),
     // run.key: «▶» пересобирает сцену с нуля
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [variant, run]
+    [variant, run, runtimeReady, runtimeCode]
   );
 
   useLayoutEffect(() => {
@@ -112,7 +127,12 @@ export default function QuestionDemo({ demo, fix = null, lang = "uz" }) {
           className={`relative overflow-hidden rounded-lg border-2 bg-white ${showFix ? "border-emerald-400" : "border-slate-300"}`}
           style={{ width: sceneW * scale + 4, height: height * scale + 4 }}
         >
-          <iframe
+          {!runtimeReady && (
+            <div className="absolute inset-0 flex items-center justify-center text-xs text-slate-500">
+              {runtime.error && runtime.name === runtimeName ? `Сцена не загрузилась: ${runtime.error}` : "Загрузка сцены…"}
+            </div>
+          )}
+          {runtimeReady && <iframe
             key={run.key}
             ref={frameRef}
             title="Живая сцена к вопросу"
@@ -120,7 +140,7 @@ export default function QuestionDemo({ demo, fix = null, lang = "uz" }) {
             referrerPolicy="no-referrer"
             srcDoc={srcDoc}
             style={{ width: sceneW, height, border: 0, transform: `scale(${scale})`, transformOrigin: "0 0", display: "block" }}
-          />
+          />}
           {showFix && (
             <span className="absolute top-1.5 right-1.5 px-2 py-0.5 rounded bg-emerald-600 text-white text-[10px] font-semibold">
               исправлено
