@@ -83,7 +83,7 @@ export default function SetEditor({ set, track, onClose, onSaved }) {
         </div>
 
         <div className="p-5 space-y-4">
-          <div className="rounded-xl bg-slate-50 p-3 space-y-1 text-sm" data-testid="set-check">
+          <div className="sticky top-[53px] z-10 rounded-xl bg-slate-50 border border-slate-100 p-3 space-y-1 text-sm shadow-sm" data-testid="set-check">
             <p className="text-slate-700">
               Выбрано <b>{codes.length}</b>: oson {got.oson} · o'rta {got.orta} · qiyin {got.qiyin}
               {check?.levels?.want && <span className="text-slate-500"> — по правилу {fmtLevels(check.levels.want)}</span>}
@@ -137,7 +137,9 @@ export default function SetEditor({ set, track, onClose, onSaved }) {
         </div>
 
         <div className="sticky bottom-0 bg-white border-t border-slate-100 px-5 py-3 flex items-center gap-2">
-          <span className="ml-auto text-xs text-slate-400">{unchanged ? "без изменений" : ""}</span>
+          <span className={`ml-auto text-xs truncate ${check && !check.ok ? "text-red-600" : "text-slate-400"}`} data-testid="set-footer-status">
+            {unchanged ? "без изменений" : check && !check.ok ? `✕ ${check.block[0]}` : check?.ok ? "✓ состав по правилу" : ""}
+          </span>
           <button type="button" onClick={onClose} disabled={busy} className="px-4 py-2 rounded-lg text-sm text-slate-600 hover:bg-slate-100">Отмена</button>
           <button type="button" onClick={save} disabled={!can} data-testid="save-set"
             className="px-4 py-2 rounded-lg text-sm bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50">
