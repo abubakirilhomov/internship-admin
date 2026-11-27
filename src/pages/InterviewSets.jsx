@@ -56,6 +56,9 @@ export default function InterviewSets() {
   const sets = overview?.sets || [];
   const rawById = new Map(raw.map((r) => [String(r._id), r]));
   const archived = raw.filter((r) => !r.isActive);
+  // Архивные наборы: в ротацию не идут, но история «кому доставался» остаётся (сервер отдаёт archived).
+  const archivedRows = overview?.archived
+    ?? archived.map((r) => ({ _id: r._id, number: r.number, source: r.source, size: r.size, usedCount: 0, lastUsedAt: null, uses: [] }));
   const toggleArchive = async (r) => {
     setError("");
     try {
@@ -63,6 +66,40 @@ export default function InterviewSets() {
       setReload((n) => n + 1);
     } catch (e) { setError(e.message); }
   };
+  const setRow = (s, isArchived) => (
+    <tr key={s._id} className={`align-top ${isArchived ? "bg-slate-50" : ""}`} data-testid={isArchived ? `archived-set-${s.number}` : undefined}>
+      <td className="py-2 pr-3">
+        <span className={`font-medium ${isArchived ? "text-slate-500" : "text-slate-900"}`}>№{s.number}</span>{" "}
+        <span className="text-xs text-slate-400">{SOURCE[s.source] || s.source}</span>
+        {isArchived && <span className="ml-1 px-1.5 py-0.5 rounded bg-slate-200 text-slate-600 text-[10px] font-medium">архив</span>}
+      </td>
+      <td className="py-2 pr-3 text-slate-600">{s.size}</td>
+      <td className="py-2 pr-3">
+        <span className={s.usedCount ? "text-slate-900" : "text-slate-400"}>{s.usedCount}</span>
+      </td>
+      <td className="py-2 pr-3 text-slate-600">{s.lastUsedAt ? fmtShortDate(s.lastUsedAt) : "—"}</td>
+      <td className="py-2 text-slate-600">
+        {s.uses.length
+          ? s.uses.map((u, i) => (
+            <div key={i} className="text-xs">{fmtShortDate(u.date)} · {u.candidate || "—"}{u.attemptNumber > 1 ? ` (попытка ${u.attemptNumber})` : ""}</div>
+          ))
+          : <span className="text-xs text-slate-400">ещё не использовался</span>}
+      </td>
+      <td className="py-2 whitespace-nowrap text-right">
+        {rawById.get(String(s._id)) && (isArchived ? (
+          <button type="button" onClick={() => window.confirm(`Вернуть набор №${s.number} из архива? Он снова попадёт в ротацию.`) && toggleArchive(rawById.get(String(s._id)))}
+            title="Состав проверяется заново" className="text-xs text-blue-700 hover:underline">Вернуть</button>
+        ) : (
+          <>
+            <button type="button" onClick={() => setEditing(rawById.get(String(s._id)))} data-testid={`edit-set-${s.number}`}
+              className="text-xs text-blue-700 hover:underline mr-3">Состав</button>
+            <button type="button" onClick={() => window.confirm(`Архивировать набор №${s.number}?`) && toggleArchive(rawById.get(String(s._id)))}
+              className="text-xs text-slate-500 hover:text-red-600">В архив</button>
+          </>
+        ))}
+      </td>
+    </tr>
+  );
   const recent = overview?.recent;
   const label = (it, i) => `№${it.setNumber ?? "—"} · ${it.candidate || `собес. ${i + 1}`}`;
 
@@ -72,7 +109,7 @@ export default function InterviewSets() {
         <div>
           <h1 className="text-xl font-semibold text-slate-900">Наборы вопросов</h1>
           <p className="text-sm text-slate-500">
-            {overview ? `${sets.length} наборов · собеседований: ${overview.totalSessions}` : "Загрузка…"}
+            {overview ? `${sets.length} наборов${archivedRows.length ? ` (+${archivedRows.length} в архиве)` : ""} · собеседований: ${overview.totalSessions}` : "Загрузка…"}
           </p>
         </div>
         <button type="button" onClick={() => setEditing(null)} data-testid="add-set"
@@ -122,48 +159,12 @@ export default function InterviewSets() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {sets.map((s) => (
-                    <tr key={s._id} className="align-top">
-                      <td className="py-2 pr-3">
-                        <span className="font-medium text-slate-900">№{s.number}</span>{" "}
-                        <span className="text-xs text-slate-400">{SOURCE[s.source] || s.source}</span>
-                      </td>
-                      <td className="py-2 pr-3 text-slate-600">{s.size}</td>
-                      <td className="py-2 pr-3">
-                        <span className={s.usedCount ? "text-slate-900" : "text-slate-400"}>{s.usedCount}</span>
-                      </td>
-                      <td className="py-2 pr-3 text-slate-600">{s.lastUsedAt ? fmtShortDate(s.lastUsedAt) : "—"}</td>
-                      <td className="py-2 text-slate-600">
-                        {s.uses.length
-                          ? s.uses.map((u, i) => (
-                            <div key={i} className="text-xs">{fmtShortDate(u.date)} · {u.candidate || "—"}{u.attemptNumber > 1 ? ` (попытка ${u.attemptNumber})` : ""}</div>
-                          ))
-                          : <span className="text-xs text-slate-400">ещё не использовался</span>}
-                      </td>
-                      <td className="py-2 whitespace-nowrap text-right">
-                        {rawById.get(String(s._id)) && (
-                          <>
-                            <button type="button" onClick={() => setEditing(rawById.get(String(s._id)))} data-testid={`edit-set-${s.number}`}
-                              className="text-xs text-blue-700 hover:underline mr-3">Состав</button>
-                            <button type="button" onClick={() => window.confirm(`Архивировать набор №${s.number}?`) && toggleArchive(rawById.get(String(s._id)))}
-                              className="text-xs text-slate-500 hover:text-red-600">В архив</button>
-                          </>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
+                  {sets.map((s) => setRow(s, false))}
+                  {archivedRows.map((s) => setRow(s, true))}
                   {!sets.length && <tr><td colSpan={6} className="py-4 text-slate-500">Наборов нет.</td></tr>}
                 </tbody>
               </table>
             </div>
-            {archived.length > 0 && (
-              <p className="text-xs text-slate-500">
-                В архиве: {archived.map((r) => (
-                  <button key={r._id} type="button" onClick={() => toggleArchive(r)} title="Вернуть из архива (состав проверяется заново)"
-                    className="ml-2 underline hover:text-blue-700">№{r.number} · вернуть</button>
-                ))}
-              </p>
-            )}
           </Card>
 
           <Card title="Пересечения последних собеседований"
