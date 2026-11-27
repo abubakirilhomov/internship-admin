@@ -246,6 +246,11 @@ export default function StartLiveModal({ interview, modes, onClose, onStarted })
                   </div>
                 </div>
               )}
+              {choice === "generate" && preview?.repeated?.length > 0 && (
+                <p className="text-xs text-slate-500">
+                  Из недавних собеседований повторяется вопросов: {preview.repeated.length} — банк не позволяет набрать полностью новые под правило уровней.
+                </p>
+              )}
               {showList && chosenCodes?.length > 0 && <QuestionsPreview codes={chosenCodes} bankByCode={bankByCode} />}
               <p className="text-xs text-slate-500">
                 Кандидат получит разовый логин. Он действует с {fmtClock(from)} до {fmtClock(to)} (Ташкент) и отключается по «Завершить».
