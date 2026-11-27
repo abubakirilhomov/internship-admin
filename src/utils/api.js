@@ -17,6 +17,33 @@ const getAuthHeaders = () => ({
   "Content-Type": "application/json",
 });
 
+const buildQuery = (params = {}) => {
+  const qs = new URLSearchParams();
+  Object.entries(params).forEach(([k, v]) => {
+    if (v !== undefined && v !== null && v !== "") qs.append(k, v);
+  });
+  const q = qs.toString();
+  return q ? `?${q}` : "";
+};
+
+// Текст ошибки бэкенда: {message} → строка, иначе тело как есть.
+const readError = async (response) => {
+  const text = await response.text();
+  try {
+    const j = JSON.parse(text);
+    return j.message || j.error || text;
+  } catch {
+    return text;
+  }
+};
+
+// Ошибка живого экрана: status отличает «нет сети/5xx» (повторяем) от 4xx (показываем).
+const liveHttpError = async (response) => {
+  const err = new Error(await readError(response));
+  err.status = response.status;
+  return err;
+};
+
 export const api = {
   // Interns
   interns: {
@@ -684,6 +711,73 @@ export const api = {
       });
       if (!response.ok) throw new Error(await response.text());
       return response.json();
+    },
+    getOne: async (id) => {
+      const response = await fetch(`${API_BASE_URL}/interviews/${id}`, { headers: getAuthHeaders() });
+      if (!response.ok) throw new Error(await readError(response));
+      return response.json();
+    },
+    // Живое собеседование по банку (int-server /interviews/.../live, только админ).
+    live: {
+      sets: async (params = {}) => {
+        const response = await fetch(`${API_BASE_URL}/interviews/live/sets${buildQuery(params)}`, { headers: getAuthHeaders() });
+        if (!response.ok) throw new Error(await readError(response));
+        return response.json();
+      },
+      preview: async (data) => {
+        const response = await fetch(`${API_BASE_URL}/interviews/live/sets/preview`, {
+          method: "POST", headers: getAuthHeaders(), body: JSON.stringify(data),
+        });
+        if (!response.ok) throw new Error(await readError(response));
+        return response.json();
+      },
+      start: async (id, data) => {
+        const response = await fetch(`${API_BASE_URL}/interviews/${id}/live`, {
+          method: "POST", headers: getAuthHeaders(), body: JSON.stringify(data),
+        });
+        if (!response.ok) throw new Error(await readError(response));
+        return response.json();
+      },
+      // 304 (ничего не изменилось) → null; иначе LiveView.
+      get: async (id, { rev, online } = {}) => {
+        const response = await fetch(`${API_BASE_URL}/interviews/${id}/live${buildQuery({ rev, online })}`, { headers: getAuthHeaders() });
+        if (response.status === 304) return null;
+        if (!response.ok) throw await liveHttpError(response);
+        return response.json();
+      },
+      question: async (id, code, action) => {
+        const response = await fetch(`${API_BASE_URL}/interviews/${id}/live/questions/${encodeURIComponent(code)}/${action}`, {
+          method: "POST", headers: getAuthHeaders(),
+        });
+        if (!response.ok) throw await liveHttpError(response);
+        return response.json();
+      },
+      rate: async (id, code, data) => {
+        const response = await fetch(`${API_BASE_URL}/interviews/${id}/live/questions/${encodeURIComponent(code)}`, {
+          method: "PATCH", headers: getAuthHeaders(), body: JSON.stringify(data),
+        });
+        if (!response.ok) throw await liveHttpError(response);
+        return response.json();
+      },
+      access: async (id, action, data = {}) => {
+        const response = await fetch(`${API_BASE_URL}/interviews/${id}/live/access/${action}`, {
+          method: "POST", headers: getAuthHeaders(), body: JSON.stringify(data),
+        });
+        if (!response.ok) throw await liveHttpError(response);
+        return response.json();
+      },
+      finish: async (id, data = {}) => {
+        const response = await fetch(`${API_BASE_URL}/interviews/${id}/live/finish`, {
+          method: "POST", headers: getAuthHeaders(), body: JSON.stringify(data),
+        });
+        if (!response.ok) throw await liveHttpError(response);
+        return response.json();
+      },
+      history: async (params = {}) => {
+        const response = await fetch(`${API_BASE_URL}/interviews/live/history${buildQuery(params)}`, { headers: getAuthHeaders() });
+        if (!response.ok) throw new Error(await readError(response));
+        return response.json();
+      },
     },
   },
   // Банк вопросов живых собеседований (int-server /question-bank, только админ).
