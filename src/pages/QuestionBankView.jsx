@@ -28,11 +28,6 @@ function RichText({ text }) {
           p.trim() && <p key={i} className="whitespace-pre-wrap">{p.trim()}</p>
         )
       )}
-      {editing !== undefined && (
-        <QuestionEditor key={editing?.code || "new"} question={editing}
-          onClose={() => setEditing(undefined)}
-          onSaved={(saved) => { setEditing(undefined); if (saved?.topic && saved.topic !== topic) setTopic(saved.topic); setReload((n) => n + 1); }} />
-      )}
     </div>
   );
 }
@@ -70,11 +65,6 @@ function QuestionCard({ q, lang, onEdit }) {
           <summary className="cursor-pointer text-xs font-medium text-slate-500 hover:text-slate-800">Ответ для интервьюера</summary>
           <div className="mt-2 border-l-2 border-slate-200 pl-3"><RichText text={answer} /></div>
         </details>
-      )}
-      {editing !== undefined && (
-        <QuestionEditor key={editing?.code || "new"} question={editing}
-          onClose={() => setEditing(undefined)}
-          onSaved={(saved) => { setEditing(undefined); if (saved?.topic && saved.topic !== topic) setTopic(saved.topic); setReload((n) => n + 1); }} />
       )}
     </div>
   );
