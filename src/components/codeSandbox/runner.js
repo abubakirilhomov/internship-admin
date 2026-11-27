@@ -74,9 +74,9 @@ export function protectHtmlScripts(html) {
   });
 }
 
-const count = (s, ch) => s.split(ch).length - 1;
+export const count = (s, ch) => s.split(ch).length - 1;
 
-function head(cfg) {
+export function head(cfg) {
   return (
     `<meta http-equiv="Content-Security-Policy" content="${CSP}">` +
     '<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' +

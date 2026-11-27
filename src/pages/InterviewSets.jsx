@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { api } from "../utils/api";
 import { BANK_TRACKS, fmtShortDate, overlapCellClass, overlapText } from "./live/liveFormat";
+import SetEditor from "./bank/SetEditor";
 
 // «Наборы»: какой набор вопросов кому достался и когда, сколько раз использован,
 // пересечения вопросов между последними собеседованиями (только админ).
@@ -36,18 +37,30 @@ export default function InterviewSets() {
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [raw, setRaw] = useState([]); // наборы с составом (включая архив) — для редактора
+  const [editing, setEditing] = useState(undefined); // undefined — закрыт, null — новый, объект — правка
+  const [reload, setReload] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true); setError("");
-    Promise.all([api.interviews.live.overview({ track, recent: 8 }), api.interviews.live.history({ track, limit: 100 })])
-      .then(([o, h]) => { if (!cancelled) { setOverview(o); setHistory(h.items || []); } })
+    Promise.all([api.interviews.live.overview({ track, recent: 8 }), api.interviews.live.history({ track, limit: 100 }), api.questionBank.sets({ track })])
+      .then(([o, h, r]) => { if (!cancelled) { setOverview(o); setHistory(h.items || []); setRaw(r.sets || []); } })
       .catch((e) => { if (!cancelled) setError(e.message || "Не удалось загрузить"); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [track]);
+  }, [track, reload]);
 
   const sets = overview?.sets || [];
+  const rawById = new Map(raw.map((r) => [String(r._id), r]));
+  const archived = raw.filter((r) => !r.isActive);
+  const toggleArchive = async (r) => {
+    setError("");
+    try {
+      await api.questionBank.updateSet(r._id, { isActive: !r.isActive });
+      setReload((n) => n + 1);
+    } catch (e) { setError(e.message); }
+  };
   const recent = overview?.recent;
   const label = (it, i) => `№${it.setNumber ?? "—"} · ${it.candidate || `собес. ${i + 1}`}`;
 
@@ -60,6 +73,8 @@ export default function InterviewSets() {
             {overview ? `${sets.length} наборов · собеседований: ${overview.totalSessions}` : "Загрузка…"}
           </p>
         </div>
+        <button type="button" onClick={() => setEditing(null)} data-testid="add-set"
+          className="px-3 py-1.5 rounded-lg text-xs font-medium bg-blue-600 text-white hover:bg-blue-700">+ Набор</button>
         <div className="inline-flex rounded-xl bg-slate-100 p-1">
           {liveTracks.map((t) => (
             <button key={t.value} type="button" onClick={() => setTrack(t.value)}
@@ -86,7 +101,8 @@ export default function InterviewSets() {
                     <th className="py-2 pr-3 font-medium">Вопросов</th>
                     <th className="py-2 pr-3 font-medium">Раз</th>
                     <th className="py-2 pr-3 font-medium">Последний раз</th>
-                    <th className="py-2 font-medium">Кому доставался</th>
+                    <th className="py-2 pr-3 font-medium">Кому доставался</th>
+                    <th className="py-2 font-medium" />
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -108,12 +124,30 @@ export default function InterviewSets() {
                           ))
                           : <span className="text-xs text-slate-400">ещё не использовался</span>}
                       </td>
+                      <td className="py-2 whitespace-nowrap text-right">
+                        {rawById.get(String(s._id)) && (
+                          <>
+                            <button type="button" onClick={() => setEditing(rawById.get(String(s._id)))} data-testid={`edit-set-${s.number}`}
+                              className="text-xs text-blue-700 hover:underline mr-3">Состав</button>
+                            <button type="button" onClick={() => window.confirm(`Архивировать набор №${s.number}?`) && toggleArchive(rawById.get(String(s._id)))}
+                              className="text-xs text-slate-500 hover:text-red-600">В архив</button>
+                          </>
+                        )}
+                      </td>
                     </tr>
                   ))}
-                  {!sets.length && <tr><td colSpan={5} className="py-4 text-slate-500">Наборов нет.</td></tr>}
+                  {!sets.length && <tr><td colSpan={6} className="py-4 text-slate-500">Наборов нет.</td></tr>}
                 </tbody>
               </table>
             </div>
+            {archived.length > 0 && (
+              <p className="text-xs text-slate-500">
+                В архиве: {archived.map((r) => (
+                  <button key={r._id} type="button" onClick={() => toggleArchive(r)} title="Вернуть из архива (состав проверяется заново)"
+                    className="ml-2 underline hover:text-blue-700">№{r.number} · вернуть</button>
+                ))}
+              </p>
+            )}
           </Card>
 
           <Card title="Пересечения последних собеседований"
@@ -180,6 +214,11 @@ export default function InterviewSets() {
             </div>
           </Card>
         </>
+      )}
+      {editing !== undefined && (
+        <SetEditor key={editing?._id || "new"} set={editing} track={track}
+          onClose={() => setEditing(undefined)}
+          onSaved={() => { setEditing(undefined); setReload((n) => n + 1); }} />
       )}
     </div>
   );
