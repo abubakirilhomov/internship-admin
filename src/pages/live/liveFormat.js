@@ -234,3 +234,26 @@ export function pluralOpen(n) {
   if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return "открытых вопроса";
   return "открытых вопросов";
 }
+
+// Размер собеседования: 15–20 вопросов, по умолчанию 18 (его отдаёт сервер).
+export const SIZE_OPTIONS = [15, 16, 17, 18, 19, 20];
+
+// «0 пересечений» / «1 пересечение» / «3 пересечения» / «7 пересечений»
+export function overlapText(n) {
+  const m10 = n % 10, m100 = n % 100;
+  let word = "пересечений";
+  if (m10 === 1 && m100 !== 11) word = "пересечение";
+  else if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) word = "пересечения";
+  return `${n} ${word}`;
+}
+
+// Цвет ячейки матрицы пересечений: доля общих вопросов от меньшего набора.
+// Только палитра админки (green/yellow/red-100, slate).
+export function overlapCellClass(n, a, b, isDiagonal) {
+  if (isDiagonal) return "bg-slate-100 text-slate-400";
+  const base = Math.min(a, b) || 1;
+  const share = n / base;
+  if (n === 0) return "bg-green-100 text-green-700";
+  if (share < 0.25) return "bg-yellow-100 text-yellow-700";
+  return "bg-red-100 text-red-700";
+}

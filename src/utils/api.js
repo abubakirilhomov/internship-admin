@@ -773,6 +773,11 @@ export const api = {
         if (!response.ok) throw await liveHttpError(response);
         return response.json();
       },
+      overview: async (params = {}) => {
+        const response = await fetch(`${API_BASE_URL}/interviews/live/sets/overview${buildQuery(params)}`, { headers: getAuthHeaders() });
+        if (!response.ok) throw new Error(await readError(response));
+        return response.json();
+      },
       history: async (params = {}) => {
         const response = await fetch(`${API_BASE_URL}/interviews/live/history${buildQuery(params)}`, { headers: getAuthHeaders() });
         if (!response.ok) throw new Error(await readError(response));

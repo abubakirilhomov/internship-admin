@@ -4,7 +4,7 @@ import { X, ChevronDown, ChevronUp } from "lucide-react";
 import { api } from "../../utils/api";
 import {
   BANK_TRACKS, LEVELS, LEVEL_ORDER, composition, compositionText, expectedText, fmtClock, fmtShortDate,
-  questionShort,
+  questionShort, SIZE_OPTIONS, overlapText,
 } from "../../pages/live/liveFormat";
 
 const radio = (on) => (
@@ -54,6 +54,7 @@ export default function StartLiveModal({ interview, modes, onClose, onStarted })
   const [otherId, setOtherId] = useState("");
   const [preview, setPreview] = useState(null);
   const [previewing, setPreviewing] = useState(false);
+  const [size, setSize] = useState(18);
   const [bank, setBank] = useState([]);
   const [showList, setShowList] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -70,6 +71,7 @@ export default function StartLiveModal({ interview, modes, onClose, onStarted })
         ]);
         if (cancelled) return;
         setData(s);
+        setSize(s.defaultSize || 18);
         setBank(q.questions || []);
         const first = (s.sets || []).find((x) => x._id !== s.suggestedSetId);
         setOtherId(first?._id || "");
@@ -90,7 +92,7 @@ export default function StartLiveModal({ interview, modes, onClose, onStarted })
   const runPreview = async () => {
     setPreviewing(true);
     try {
-      const r = await api.interviews.live.preview({ track, interviewId: interview._id, size: data?.defaultSize });
+      const r = await api.interviews.live.preview({ track, interviewId: interview._id, size });
       setPreview(r);
     } catch (e) {
       setPreview(null);
@@ -102,7 +104,7 @@ export default function StartLiveModal({ interview, modes, onClose, onStarted })
   useEffect(() => {
     if (choice === "generate" && !preview && !previewing && data) runPreview();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [choice, data]);
+  }, [choice, data, size]);
 
   const chosenCodes = choice === "suggested" ? suggested?.questionCodes
     : choice === "other" ? other?.questionCodes
@@ -120,7 +122,7 @@ export default function StartLiveModal({ interview, modes, onClose, onStarted })
     setSaving(true);
     try {
       const body = { track };
-      if (choice === "generate") { body.generate = true; body.questionCodes = preview.questionCodes; }
+      if (choice === "generate") { body.generate = true; body.size = size; body.questionCodes = preview.questionCodes; }
       else body.setId = choice === "suggested" ? suggested._id : other._id;
       const view = await api.interviews.live.start(interview._id, body);
       onStarted(view);
@@ -131,6 +133,8 @@ export default function StartLiveModal({ interview, modes, onClose, onStarted })
   };
 
   const used = (s) => (s.usedCount ? `использовался ${s.usedCount} раз, последний ${fmtShortDate(s.lastUsedAt)}` : "ещё не использовался");
+  const retake = !!data?.retake?.isRetake;
+  const overlapOf = (s) => (retake ? ` · ${overlapText(s.overlap || 0)} с прошлой попыткой` : "");
   const levelsText = (c) => `уровни ${LEVEL_ORDER.map((l) => c.levels[l]).join(" / ")}`;
 
   return (
@@ -174,6 +178,11 @@ export default function StartLiveModal({ interview, modes, onClose, onStarted })
               <p className="text-sm text-slate-500">Банка для этого направления пока нет — только чек-лист.</p>
             ) : (
               <div className="space-y-2">
+                {retake && (
+                  <p className="text-xs text-blue-700 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
+                    Пересдача: прошлых вопросов кандидата — {data.retake.priorQuestions}. Предложен набор с наименьшим пересечением.
+                  </p>
+                )}
                 {suggested && (
                   <button type="button" onClick={() => setChoice("suggested")}
                     className={`w-full flex gap-3 p-3 rounded-lg border text-left ${choice === "suggested" ? "border-blue-400 bg-blue-50/50" : "border-slate-200"}`}>
@@ -181,19 +190,27 @@ export default function StartLiveModal({ interview, modes, onClose, onStarted })
                     <span className="text-sm">
                       <span className={choice === "suggested" ? "font-medium text-slate-900" : "text-slate-900"}>Набор №{suggested.number} — следующий по ротации</span><br />
                       <span className="text-xs text-slate-500">
-                        {used(suggested)} · {suggested.size} вопросов · {levelsText(composition(suggested.questionCodes, bankByCode))}
+                        {used(suggested)} · {suggested.size} вопросов · {levelsText(composition(suggested.questionCodes, bankByCode))}{overlapOf(suggested)}
                       </span>
                     </span>
                   </button>
                 )}
-                <button type="button" onClick={() => { setChoice("generate"); }}
-                  className={`w-full flex gap-3 p-3 rounded-lg border text-left ${choice === "generate" ? "border-blue-400 bg-blue-50/50" : "border-slate-200"}`}>
+                <div role="button" tabIndex={0} onClick={() => setChoice("generate")}
+                  onKeyDown={(e) => { if (e.key === "Enter") setChoice("generate"); }}
+                  className={`w-full flex gap-3 p-3 rounded-lg border text-left cursor-pointer ${choice === "generate" ? "border-blue-400 bg-blue-50/50" : "border-slate-200"}`}>
                   {radio(choice === "generate")}
-                  <span className="text-sm">
+                  <span className="text-sm flex-1">
                     <span className={choice === "generate" ? "font-medium text-slate-900" : "text-slate-900"}>Сгенерировать новый по правилу</span><br />
-                    <span className="text-xs text-slate-500">без вопросов трёх прошлых собеседований</span>
+                    <span className="text-xs text-slate-500">без вопросов трёх прошлых собеседований{retake ? " и прошлой попытки кандидата" : ""}</span>
+                  <label className="mt-2 flex items-center gap-1.5 text-xs text-slate-500" onClick={(e) => e.stopPropagation()}>
+                    Вопросов
+                    <select value={size} aria-label="Количество вопросов" onChange={(e) => { setSize(Number(e.target.value)); setPreview(null); setChoice("generate"); }}
+                      className="px-2 py-1 rounded-lg border border-slate-200 text-xs bg-white focus:outline-none focus:border-blue-400">
+                      {SIZE_OPTIONS.map((n) => <option key={n} value={n}>{n}</option>)}
+                    </select>
+                  </label>
                   </span>
-                </button>
+                </div>
                 {sets.length > 1 && (
                   <div className={`flex gap-3 p-3 rounded-lg border items-center ${choice === "other" ? "border-blue-400 bg-blue-50/50" : "border-slate-200"}`}
                     onClick={() => setChoice("other")}>
@@ -202,7 +219,7 @@ export default function StartLiveModal({ interview, modes, onClose, onStarted })
                     <select value={otherId} onChange={(e) => { setOtherId(e.target.value); setChoice("other"); }}
                       className="px-2 py-1 rounded-lg border border-slate-200 text-xs bg-white focus:outline-none focus:border-blue-400">
                       {sets.filter((s) => s._id !== data.suggestedSetId).map((s) => (
-                        <option key={s._id} value={s._id}>№{s.number} · {s.lastUsedAt ? fmtShortDate(s.lastUsedAt) : "новый"}</option>
+                        <option key={s._id} value={s._id}>№{s.number} · {s.size} в. · {s.lastUsedAt ? fmtShortDate(s.lastUsedAt) : "новый"}{retake ? ` · ${overlapText(s.overlap || 0)}` : ""}</option>
                       ))}
                     </select>
                   </div>
@@ -222,7 +239,7 @@ export default function StartLiveModal({ interview, modes, onClose, onStarted })
               {chosenCodes?.length > 0 && (
                 <div className="text-xs bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 text-slate-600">
                   <div className="flex items-center justify-between gap-2">
-                    <span>{compositionText(comp)}{" · "}{levelsText(comp)}</span>
+                    <span>{compositionText(comp)}{" · "}{levelsText(comp)}{choice === "generate" && retake && preview ? ` · ${overlapText(preview.overlap || 0)} с прошлой попыткой` : ""}</span>
                     <button type="button" onClick={() => setShowList((v) => !v)} className="shrink-0 inline-flex items-center gap-0.5 text-blue-600 hover:underline font-medium">
                       Посмотреть вопросы {showList ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
                     </button>
