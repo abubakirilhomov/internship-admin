@@ -98,9 +98,11 @@ export default function LiveInterview() {
     setFinishing(true);
     const v = await finish();
     if (!v) { setFinishing(false); return; }
-    let iv = null;
-    try { iv = await api.interviews.getOne(id); } catch { /* итог покажем по баллу сессии */ }
-    const interview = iv?.interview || iv;
+    // Итог приходит в ответе finish (int-server ≥ #24); старый сервер — отдельный GET.
+    let interview = v.result?.interview || null;
+    if (!interview) {
+      try { const iv = await api.interviews.getOne(id); interview = iv?.interview || iv; } catch { /* итог покажем по баллу сессии */ }
+    }
     const s = v.score || {};
     setResult({
       result: interview && interview.percentage !== undefined ? interview : {
