@@ -1,7 +1,7 @@
 // node --test: сборка srcdoc и варианты сцены. Данные синтетические.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { CSP, SANDBOX, buildSrcdoc, clampWidth, fitScale, localizedCaption, resolveVariant, safeJson } from "./srcdoc.js";
+import { CSP, SANDBOX, buildSrcdoc, clampWidth, fitScale, localizedCaption, resolveVariant, safeJson, safeScript } from "./srcdoc.js";
 
 test("CSP без сети стоит первым в head, до любого авторского HTML/CSS", () => {
   const doc = buildSrcdoc({ html: '<meta http-equiv="Content-Security-Policy" content="default-src *"><p>x</p>', css: "p{}" });
@@ -53,4 +53,21 @@ test("масштаб и ширина", () => {
   assert.equal(clampWidth(100), 375);
   assert.equal(clampWidth(5000), 1440);
   assert.equal(clampWidth("800.4"), 800);
+});
+
+test("runtime: библиотека в <head> после CSP, до html автора; без runtime — тега нет", () => {
+  const doc = buildSrcdoc({ html: "<div id=app></div>", runtimeCode: "window.LIB=1;" });
+  const csp = doc.indexOf("Content-Security-Policy");
+  const lib = doc.indexOf("<script>window.LIB=1;</script>");
+  assert.ok(csp > 0 && lib > csp && lib < doc.indexOf("<body>"));
+  assert.doesNotMatch(buildSrcdoc({ html: "<p>x</p>" }).slice(0, buildSrcdoc({ html: "<p>x</p>" }).indexOf("<body>")), /<script>/);
+});
+
+test("runtime: код с </script> и <!-- не закрывает тег", () => {
+  const code = 'var s="</script><script>alert(1)</script>"; var c="<!--<script>";';
+  const doc = buildSrcdoc({ html: "", runtimeCode: code });
+  const head = doc.slice(0, doc.indexOf("<body>"));
+  assert.equal((head.match(/<\/script>/gi) || []).length, 1);
+  assert.doesNotMatch(head, /<!--/);
+  assert.equal(safeScript("a</SCRIPT b"), "a<\\/SCRIPT b");
 });
