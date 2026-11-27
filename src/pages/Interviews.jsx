@@ -1,10 +1,15 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { api } from "../utils/api";
+import { InterviewResultBody } from "../components/interviews/InterviewResult";
 import { toast, ToastContainer } from "react-toastify";
 import {
   CalendarPlus, Clock, Phone, RefreshCw, UserX, X, Search,
-  ClipboardCheck, Ban, CalendarClock, Copy, Check, FileText,
+  ClipboardCheck, Ban, CalendarClock, Copy, Check, FileText, Play,
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import StartLiveModal from "../components/interviews/StartLiveModal";
+import CandidateAccessModal from "../components/interviews/CandidateAccessModal";
+import { TRACK_FULL } from "./live/liveFormat";
 
 const TRACKS = [
   { value: "", label: "Все направления" },
@@ -182,12 +187,7 @@ function ScoringModal({ interview, onClose, onSaved }) {
   const [phase, setPhase] = useState("grading");
   const [result, setResult] = useState(null);
   const [letter, setLetter] = useState(null);
-  const [lang, setLang] = useState("ru");
-  const [copied, setCopied] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [creating, setCreating] = useState(false);
-  const [account, setAccount] = useState(null);
-  const [accCopied, setAccCopied] = useState(false);
 
   // Фокус пересдачи: темы из roadmap прошлой попытки. По умолчанию показываем
   // только их (с переключателем «показать все»).
@@ -246,42 +246,6 @@ function ScoringModal({ interview, onClose, onSaved }) {
       toast.error(e.message || "Ошибка сохранения");
     } finally {
       setSaving(false);
-    }
-  };
-
-  const copy = async () => {
-    try {
-      await navigator.clipboard.writeText(letter?.[lang] || "");
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    } catch {
-      toast.error("Не удалось скопировать");
-    }
-  };
-
-  // Фаза 3: создать аккаунт интерна из прошедшей заявки (reuse convert).
-  const createAccount = async () => {
-    const appId = result?.application?._id;
-    if (!appId) return toast.error("Нет заявки кандидата");
-    setCreating(true);
-    try {
-      const r = await api.applications.convert(appId);
-      setAccount({ username: r.intern?.username || "", tempPassword: r.tempPassword || "" });
-      toast.success("Аккаунт создан");
-      onSaved();
-    } catch (e) {
-      toast.error(e.message || "Не удалось создать аккаунт");
-    } finally {
-      setCreating(false);
-    }
-  };
-  const copyAccount = async () => {
-    try {
-      await navigator.clipboard.writeText(`Логин: ${account.username}\nПароль: ${account.tempPassword}`);
-      setAccCopied(true);
-      setTimeout(() => setAccCopied(false), 1500);
-    } catch {
-      toast.error("Не удалось скопировать");
     }
   };
 
@@ -361,55 +325,19 @@ function ScoringModal({ interview, onClose, onSaved }) {
             </div>
           </>
         ) : (
-          <div className="overflow-y-auto flex-1 p-5 space-y-4">
-            <div className={`rounded-xl p-4 text-center ${result?.passed ? "bg-green-50" : "bg-red-50"}`}>
-              <p className={`text-3xl font-bold ${result?.passed ? "text-green-600" : "text-red-500"}`}>{result?.percentage}%</p>
-              <p className="text-sm text-slate-600 mt-1">{result?.scoreEarned}/{result?.scoreTotal} · {result?.passed ? "Прошёл ✅" : "Не прошёл ❌"}</p>
-            </div>
-
-            {result?.passed && (
-              account ? (
-                <div className="rounded-xl bg-green-50 border border-green-200 p-4 space-y-1.5">
-                  <p className="text-sm font-semibold text-green-800">Аккаунт интерна создан ✅</p>
-                  <p className="text-sm"><span className="text-slate-500">Логин:</span> <code className="font-mono">{account.username}</code></p>
-                  <p className="text-sm"><span className="text-slate-500">Пароль:</span> <code className="font-mono">{account.tempPassword}</code></p>
-                  <button onClick={copyAccount} className="mt-1 inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium bg-white border border-green-200 text-green-700 hover:bg-green-50">
-                    {accCopied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />} {accCopied ? "Скопировано" : "Скопировать"}
-                  </button>
-                  <p className="text-xs text-slate-400">Пароль показывается один раз — передай кандидату.</p>
-                </div>
-              ) : (
-                <button onClick={createAccount} disabled={creating} className="w-full px-4 py-2.5 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-lg disabled:opacity-60">
-                  {creating ? "Создание…" : "Создать аккаунт интерна"}
-                </button>
-              )
-            )}
-
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-xs font-semibold text-slate-500 uppercase">Письмо кандидату</p>
-                <div className="flex items-center gap-1">
-                  {["ru", "uz"].map((l) => (
-                    <button key={l} onClick={() => setLang(l)} className={`px-2 py-0.5 rounded text-xs font-medium ${lang === l ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-500"}`}>{l.toUpperCase()}</button>
-                  ))}
-                  <button onClick={copy} className="ml-1 inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-600 hover:bg-slate-200">
-                    {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />} {copied ? "Скопировано" : "Копировать"}
-                  </button>
-                </div>
-              </div>
-              <textarea readOnly value={letter?.[lang] || ""} rows={10} className="w-full text-sm p-3 rounded-lg border border-slate-200 bg-slate-50 resize-none" />
-            </div>
-            <div className="flex justify-end">
-              <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg">Готово</button>
-            </div>
-          </div>
+          <InterviewResultBody result={result} letter={letter} onSaved={onSaved} onClose={onClose} />
         )}
       </div>
     </div>
   );
 }
 
-function InterviewCard({ iv, onChanged }) {
+function InterviewCard({ iv, onChanged, modes }) {
+  const navigate = useNavigate();
+  const [showStart, setShowStart] = useState(false);
+  const [issued, setIssued] = useState(null);
+  const liveOn = modes?.[iv.track] === "live";
+  const liveRunning = iv.live && (iv.live.status === "lobby" || iv.live.status === "live");
   const a = iv.application || {};
   const name = `${a.firstName || ""} ${a.lastName || ""}`.trim() || "—";
   const teacher = a.mentor ? `${a.mentor.name || ""} ${a.mentor.lastName || ""}`.trim() : "";
@@ -459,6 +387,17 @@ function InterviewCard({ iv, onChanged }) {
       </div>
 
       <div className="mt-3 flex flex-wrap items-center gap-1.5">
+        {liveRunning ? (
+          <button onClick={() => navigate(`/interviews/${iv._id}/live`)} disabled={busy}
+            className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg disabled:opacity-50">
+            <Play className="w-3.5 h-3.5" /> Продолжить собеседование
+          </button>
+        ) : liveOn ? (
+          <button onClick={() => setShowStart(true)} disabled={busy}
+            className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg disabled:opacity-50">
+            <Play className="w-3.5 h-3.5" /> Начать собеседование
+          </button>
+        ) : null}
         <a
           href={iv.calendarLink}
           target="_blank"
@@ -473,7 +412,7 @@ function InterviewCard({ iv, onChanged }) {
         </button>
         <button onClick={() => setShowScoring(true)} disabled={busy}
           className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-green-700 bg-green-50 hover:bg-green-100 rounded-lg disabled:opacity-50">
-          <ClipboardCheck className="w-3.5 h-3.5" /> Оценить
+          <ClipboardCheck className="w-3.5 h-3.5" /> {liveOn ? "Оценить по чек-листу" : "Оценить"}
         </button>
         <button onClick={() => setStatus("no_show")} disabled={busy}
           className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs text-orange-700 hover:bg-orange-50 rounded-lg disabled:opacity-50">
@@ -484,6 +423,27 @@ function InterviewCard({ iv, onChanged }) {
           <Ban className="w-3.5 h-3.5" /> Отменить
         </button>
       </div>
+
+      {modes && !liveOn && !liveRunning && (
+        <p className="mt-2 text-xs text-slate-400">Банка для {TRACK_FULL[iv.track] || iv.track} пока нет — только чек-лист</p>
+      )}
+
+      {showStart && (
+        <StartLiveModal
+          interview={iv}
+          modes={modes}
+          onClose={() => setShowStart(false)}
+          onStarted={(view) => { setShowStart(false); setIssued(view); }}
+        />
+      )}
+      {issued && (
+        <CandidateAccessModal
+          credentials={issued.credentials}
+          candidate={name}
+          subtitle={`${TRACK_FULL[issued.track] || issued.track}${issued.set ? ` · набор №${issued.set.number}` : ""}`}
+          onOpenLive={() => navigate(`/interviews/${iv._id}/live`)}
+        />
+      )}
 
       {showReschedule && (
         <RescheduleModal
@@ -504,7 +464,7 @@ function InterviewCard({ iv, onChanged }) {
   );
 }
 
-const Section = ({ title, icon: Icon, accent, items, onChanged }) => {
+const Section = ({ title, icon: Icon, accent, items, onChanged, modes }) => {
   if (!items.length) return null;
   return (
     <div className="mb-6">
@@ -513,7 +473,7 @@ const Section = ({ title, icon: Icon, accent, items, onChanged }) => {
         <span className="text-slate-400 font-normal">({items.length})</span>
       </h2>
       <div className="grid gap-3 md:grid-cols-2">
-        {items.map((iv) => <InterviewCard key={iv._id} iv={iv} onChanged={onChanged} />)}
+        {items.map((iv) => <InterviewCard key={iv._id} iv={iv} onChanged={onChanged} modes={modes} />)}
       </div>
     </div>
   );
@@ -651,6 +611,11 @@ export default function Interviews() {
   const [track, setTrack] = useState("");
   const [q, setQ] = useState("");
   const [mode, setMode] = useState("scheduled"); // scheduled | completed
+  // Для каких направлений есть банк (live) — иначе только чек-лист.
+  const [modes, setModes] = useState(null);
+  useEffect(() => {
+    api.questionBank.stats().then((st) => setModes(st?.modes || {})).catch(() => setModes({}));
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -737,9 +702,9 @@ export default function Interviews() {
         </div>
       ) : mode === "scheduled" ? (
         <>
-          <Section title="Просрочено" icon={CalendarClock} accent="text-red-600" items={overdue} onChanged={load} />
-          <Section title="Сегодня" icon={Clock} accent="text-purple-700" items={today} onChanged={load} />
-          <Section title="Скоро" icon={CalendarPlus} accent="text-slate-600" items={upcoming} onChanged={load} />
+          <Section title="Просрочено" icon={CalendarClock} accent="text-red-600" items={overdue} onChanged={load} modes={modes} />
+          <Section title="Сегодня" icon={Clock} accent="text-purple-700" items={today} onChanged={load} modes={modes} />
+          <Section title="Скоро" icon={CalendarPlus} accent="text-slate-600" items={upcoming} onChanged={load} modes={modes} />
         </>
       ) : (
         <div className="grid gap-3 md:grid-cols-2">

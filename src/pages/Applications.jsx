@@ -10,10 +10,15 @@ import {
   UserPlus,
   AlertCircle,
   CalendarPlus,
+  Play,
   Plus,
 } from "lucide-react";
 import { toast, ToastContainer } from "react-toastify";
 import { api } from "../utils/api";
+import { useNavigate } from "react-router-dom";
+import StartLiveModal from "../components/interviews/StartLiveModal";
+import CandidateAccessModal from "../components/interviews/CandidateAccessModal";
+import { TRACK_FULL } from "./live/liveFormat";
 
 const STATUSES = [
   { value: "pending", label: "Новая", chip: "bg-yellow-100 text-yellow-800" },
@@ -632,6 +637,24 @@ const Applications = () => {
   const [retrying, setRetrying] = useState(null);
   const [mentors, setMentors] = useState([]);
   const [scheduleApp, setScheduleApp] = useState(null);
+  // «Начать собеседование» из заявки: находим запланированное Interview этой заявки.
+  const navigate = useNavigate();
+  const [startLive, setStartLive] = useState(null); // { iv, modes }
+  const [issuedLive, setIssuedLive] = useState(null); // { view, ivId, name }
+  const [startingId, setStartingId] = useState(null);
+  const beginLive = async (a) => {
+    setStartingId(a._id);
+    try {
+      const [list, st] = await Promise.all([api.interviews.getAll({ status: "scheduled" }), api.questionBank.stats()]);
+      const iv = (list.items || []).find((i) => String(i.application?._id || i.application) === String(a._id));
+      if (!iv) return toast.error("Не нашли запланированное собеседование этой заявки");
+      setStartLive({ iv, modes: st?.modes || {} });
+    } catch (err) {
+      toast.error(err.message || "Не удалось открыть собеседование");
+    } finally {
+      setStartingId(null);
+    }
+  };
   const [showCreate, setShowCreate] = useState(false);
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -930,6 +953,17 @@ const Applications = () => {
                           >
                             Открыть
                           </button>
+                          {a.status === "interview_scheduled" && !a.convertedToIntern && (
+                            <button
+                              onClick={() => beginLive(a)}
+                              disabled={startingId === a._id}
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                              title="Начать собеседование по банку вопросов"
+                            >
+                              <Play className="w-3.5 h-3.5" />
+                              Начать собеседование
+                            </button>
+                          )}
                           {canSchedule && (
                             <button
                               onClick={() => setScheduleApp(a)}
@@ -1009,6 +1043,27 @@ const Applications = () => {
           application={convertModal}
           onClose={() => setConvertModal(null)}
           onSaved={load}
+        />
+      )}
+
+      {startLive && (
+        <StartLiveModal
+          interview={startLive.iv}
+          modes={startLive.modes}
+          onClose={() => setStartLive(null)}
+          onStarted={(view) => {
+            const a = startLive.iv.application || {};
+            setIssuedLive({ view, ivId: startLive.iv._id, name: `${a.firstName || ""} ${a.lastName || ""}`.trim() || "Кандидат" });
+            setStartLive(null);
+          }}
+        />
+      )}
+      {issuedLive && (
+        <CandidateAccessModal
+          credentials={issuedLive.view.credentials}
+          candidate={issuedLive.name}
+          subtitle={`${TRACK_FULL[issuedLive.view.track] || issuedLive.view.track}${issuedLive.view.set ? ` · набор №${issuedLive.view.set.number}` : ""}`}
+          onOpenLive={() => navigate(`/interviews/${issuedLive.ivId}/live`)}
         />
       )}
 
