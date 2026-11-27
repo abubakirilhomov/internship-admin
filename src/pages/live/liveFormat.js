@@ -247,6 +247,23 @@ export function overlapText(n) {
   return `${n} ${word}`;
 }
 
+// Пересдача: если «Сгенерировать новый» даёт на RETAKE_GENERATE_GAP и больше
+// пересечений меньше, чем лучший готовый набор, модалка по умолчанию предлагает
+// генерацию и объясняет почему (решение главного, 27.11).
+export const RETAKE_GENERATE_GAP = 3;
+export function retakeAdvice({ retake, sets, preview }) {
+  if (!retake || !preview || !Array.isArray(sets) || !sets.length) return null;
+  const best = Math.min(...sets.map((s) => Number(s.overlap) || 0));
+  const generated = Number(preview.overlap) || 0;
+  if ((preview.violations || []).length > 0 || best - generated < RETAKE_GENERATE_GAP) return null;
+  return {
+    best,
+    generated,
+    text: `У нового набора ${overlapText(generated)} с прошлой попыткой, у лучшего готового — ${overlapText(best)}. ` +
+      "Поэтому по умолчанию выбрана генерация.",
+  };
+}
+
 // Цвет ячейки матрицы пересечений: доля общих вопросов от меньшего набора.
 // Только палитра админки (green/yellow/red-100, slate).
 export function overlapCellClass(n, a, b, isDiagonal) {
