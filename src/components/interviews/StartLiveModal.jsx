@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "react-toastify";
 import { X, ChevronDown, ChevronUp } from "lucide-react";
 import { api } from "../../utils/api";
@@ -100,12 +100,24 @@ export default function StartLiveModal({ interview, modes, onClose, onStarted })
   const suggested = sets.find((s) => s._id === data?.suggestedSetId) || null;
   const other = sets.find((s) => s._id === otherId) || null;
 
+  // Параметры предпросмотра. Ответ на устаревшие параметры (размер или «+ HTML/CSS»
+  // сменили, пока шёл запрос) отбрасывается, и эффект собирает набор заново —
+  // иначе старт уходил с набором без выбранных extras (нашёл смок 27.11).
+  const previewKey = `${track}|${size}|${extrasN}`;
+  const keyRef = useRef(previewKey);
+  keyRef.current = previewKey;
+  const failedKeyRef = useRef(null);
   const runPreview = async () => {
+    const key = keyRef.current;
     setPreviewing(true);
     try {
       const r = await api.interviews.live.preview({ track, interviewId: interview._id, size, ...(data?.extras ? { extras: extrasN } : {}) });
+      if (key !== keyRef.current) return;
+      failedKeyRef.current = null;
       setPreview(r);
     } catch (e) {
+      if (key !== keyRef.current) return;
+      failedKeyRef.current = key; // не повторяем автоматически тот же неудачный запрос
       setPreview(null);
       toast.error(e.message || "Не удалось сгенерировать набор");
     } finally {
@@ -115,9 +127,10 @@ export default function StartLiveModal({ interview, modes, onClose, onStarted })
   // При пересдаче генерацию считаем сразу — чтобы сравнить с готовыми наборами.
   const retakeNow = !!data?.retake?.isRetake;
   useEffect(() => {
-    if ((choice === "generate" || retakeNow) && !preview && !previewing && data && data.mode === "live") runPreview();
+    if ((choice === "generate" || retakeNow) && !preview && !previewing && data && data.mode === "live"
+      && failedKeyRef.current !== previewKey) runPreview();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [choice, data, size, extrasN]);
+  }, [choice, data, size, extrasN, previewing]);
   const advice = useMemo(() => retakeAdvice({ retake: retakeNow, sets: data?.sets, preview }), [retakeNow, data, preview]);
   useEffect(() => { if (advice && !touched) setChoice("generate"); }, [advice, touched]);
 
