@@ -829,6 +829,14 @@ export const api = {
     checkSet: (body) => bankWrite("POST", "/question-bank/sets/check", body),
     createSet: (body) => bankWrite("POST", "/question-bank/sets", body),
     updateSet: (id, body) => bankWrite("PATCH", `/question-bank/sets/${id}`, body),
+    // Правило набора на трек: GET — действующее правило + темы трека + счётчики банка;
+    // PUT — 400 {message} (суммы ≠ размер), 422 {message, sets} (ломает активные наборы → details.sets).
+    getRules: async (track) => {
+      const response = await fetch(`${API_BASE_URL}/question-bank/rules/${encodeURIComponent(track)}`, { headers: getAuthHeaders() });
+      if (!response.ok) throw new Error(await readError(response));
+      return response.json();
+    },
+    updateRules: (track, body) => bankWrite("PUT", `/question-bank/rules/${encodeURIComponent(track)}`, body),
   },
   interviewTopics: {
     getAll: async (params = {}) => {

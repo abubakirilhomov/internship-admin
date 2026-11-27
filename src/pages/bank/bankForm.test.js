@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   toForm, toPatch, toCreateBody, translationHint, emptyForm, effectiveEditor, addTest, patchTest, removeTest, FormError,
+  isValidCode, pythonDefaults, EDITORS, TOPICS, TRACKS, tracksFor,
 } from "./bankForm.js";
 
 const q = {
@@ -67,4 +68,36 @@ test("effectiveEditor и правка списка тестов", () => {
   f = patchTest(f, 1, { name: "b" });
   assert.deepEqual(f.tests.map((t) => t.name), ["", "b"]);
   assert.deepEqual(removeTest(f, 0).tests.map((t) => t.name), ["b"]);
+});
+
+test("код вопроса: J26 и модуль-номер Python M3-05; прочее — FormError при создании", () => {
+  for (const c of ["J26", "h1", "A999", "M3-05", "m10-12", " M4-26 "]) assert.equal(isValidCode(c), true, c);
+  for (const c of ["", "J", "X12", "J1234", "M3-5", "M100-01", "M3-005", "M3_05", "PY-01"]) assert.equal(isValidCode(c), false, c);
+  assert.throws(() => toCreateBody({ ...emptyForm("X1"), prompt: "p" }), (e) => e instanceof FormError && /M4-26/.test(e.message));
+  assert.equal(toCreateBody({ ...emptyForm("m3-05"), prompt: "p" }).code, "M3-05");
+});
+
+test("Python: код M7-03 → тема py-m7 и трек Python; редактор по коду — python, у M7 — sql", () => {
+  assert.deepEqual(pythonDefaults("M7-03"), { topic: "py-m7", tracks: ["backend-python"] });
+  assert.equal(pythonDefaults("J1"), null);
+  assert.equal(effectiveEditor({ code: "M3-01", editor: "" }), "python");
+  assert.equal(effectiveEditor({ code: "M7-02", editor: "" }), "sql");
+  assert.equal(effectiveEditor({ code: "M7-02", editor: "python" }), "python");
+  assert.ok(EDITORS.some((e) => e.value === "python" && /только подсветка/.test(e.label)));
+  assert.ok(EDITORS.some((e) => e.value === "sql" && /только подсветка/.test(e.label)));
+  assert.ok(TOPICS.some((t) => t.value === "py-m11"));
+});
+
+test("направления вопроса: три активных; backend-nodejs — только если вопрос к нему привязан", () => {
+  assert.deepEqual(TRACKS.map((t) => t.value), ["frontend-react", "frontend-vue", "backend-python"]);
+  assert.deepEqual(tracksFor(["frontend-react"]).map((t) => t.value), ["frontend-react", "frontend-vue", "backend-python"]);
+  assert.ok(tracksFor(["backend-nodejs"]).some((t) => t.value === "backend-nodejs"));
+});
+
+test("subtopic: правка → строка или null, создание — только непустое", () => {
+  const o = toForm({ ...q, subtopic: "auth" });
+  assert.equal(o.subtopic, "auth");
+  assert.deepEqual(toPatch({ ...o, subtopic: " orm " }, o), { subtopic: "orm" });
+  assert.deepEqual(toPatch({ ...o, subtopic: "" }, o), { subtopic: null });
+  assert.equal(toCreateBody({ ...emptyForm("M10-01"), prompt: "p", subtopic: " auth " }).subtopic, "auth");
 });

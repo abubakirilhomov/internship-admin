@@ -131,3 +131,16 @@ test("warmupEditor: vue/tailwind → общий шаблон, jsx → react, и�
   assert.equal(warmupEditor([{ editor: "js" }, { editor: null }]), null);
   assert.equal(warmupEditor(), null);
 });
+
+test("подписи Python-модулей и направлений на живом экране", async () => {
+  const { TOPIC_LABELS, TRACK_FULL, BANK_TRACKS } = await import("./liveFormat.js");
+  assert.equal(TOPIC_LABELS["py-m7"], "M7 · SQL va PostgreSQL");
+  assert.equal(TRACK_FULL["backend-nodejs"], "Backend (Node.js) — архив");
+  assert.deepEqual(BANK_TRACKS.map((t) => t.value), ["frontend-react", "frontend-vue", "backend-python"]);
+  const comp = composition(["M3-01", "M3-02", "H1"], new Map([
+    ["M3-01", { level: "oson", topic: "py-m3", isPractical: true }],
+    ["M3-02", { level: "orta", topic: "py-m3" }],
+    ["H1", { level: "oson", topic: "html" }],
+  ]));
+  assert.equal(compositionText(comp), "M3 · Python asoslari 2 · HTML 1 · amaliy 1");
+});

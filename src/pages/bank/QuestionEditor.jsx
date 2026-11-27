@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { api } from "../../utils/api";
 import {
-  ANSWER_KINDS, EDITORS, LEVELS, RU_STATUS, TESTABLE_EDITORS, TOPICS, TRACKS, FormError,
-  addTest, effectiveEditor, emptyForm, patchTest, removeTest, toCreateBody, toForm, toPatch, translationHint,
+  ANSWER_KINDS, EDITORS, LEVELS, RU_STATUS, TESTABLE_EDITORS, TOPICS, FormError,
+  addTest, effectiveEditor, emptyForm, isValidCode, patchTest, pythonDefaults, removeTest, toCreateBody, toForm, toPatch,
+  tracksFor, translationHint,
 } from "./bankForm";
 
 // Редактор вопроса банка (только админ): создание, правка, архивирование. Правка не меняет
@@ -43,6 +44,11 @@ export default function QuestionEditor({ question, onClose, onSaved }) {
   const editor = effectiveEditor(form);
   const canTest = TESTABLE_EDITORS.includes(editor) && (form.answerKind === "code" || form.answerKind === "sandbox");
   const ruStatus = question?.ruStatus && RU_STATUS[question.ruStatus];
+  const notCovered = !isNew && question.isActive === false && !!question.notCovered;
+  const trackChoices = tracksFor([...(question?.tracks || []), ...form.tracks]);
+  const badCode = isNew && form.code.trim() !== "" && !isValidCode(form.code);
+  // Новый вопрос с кодом Python (M4-26): тема-модуль и трек Python подставляются сами.
+  const setCode = (code) => setForm((f) => ({ ...f, code, ...(pythonDefaults(code) || {}) }));
 
   const save = async (extra = {}) => {
     setError(""); setBlockedBy([]);
@@ -68,7 +74,9 @@ export default function QuestionEditor({ question, onClose, onSaved }) {
 
   const archive = () => {
     const to = !(question.isActive !== false);
-    if (!window.confirm(to ? `Вернуть ${question.code} из архива?` : `Архивировать ${question.code}? В новые наборы он не попадёт.`)) return;
+    const ask = notCovered ? `Включить ${question.code}? Модуль пройден — вопрос попадёт в новые наборы.`
+      : to ? `Вернуть ${question.code} из архива?` : `Архивировать ${question.code}? В новые наборы он не попадёт.`;
+    if (!window.confirm(ask)) return;
     save({ isActive: to });
   };
 
@@ -82,7 +90,8 @@ export default function QuestionEditor({ question, onClose, onSaved }) {
         role="dialog" aria-modal="true" aria-label={isNew ? "Новый вопрос" : `Вопрос ${question.code}`} data-testid="question-editor">
         <div className="sticky top-0 bg-white border-b border-slate-100 px-5 py-3 flex flex-wrap items-center gap-2 z-10">
           <h2 className="text-base font-semibold text-slate-900">{isNew ? "Новый вопрос" : `Вопрос ${question.code}`}</h2>
-          {!isNew && question.isActive === false && <span className="px-2 py-0.5 rounded-full text-xs bg-slate-800 text-white">в архиве</span>}
+          {notCovered && <span className="px-2 py-0.5 rounded-full text-xs bg-amber-100 text-amber-800">ещё не пройдено</span>}
+          {!isNew && question.isActive === false && !notCovered && <span className="px-2 py-0.5 rounded-full text-xs bg-slate-800 text-white">в архиве</span>}
           {ruStatus && <span className={`px-2 py-0.5 rounded-full text-xs ${ruStatus.cls}`} data-testid="ru-status">{ruStatus.label}</span>}
           <button type="button" onClick={onClose} className="ml-auto px-3 py-1 rounded-lg text-sm text-slate-600 hover:bg-slate-100">Закрыть ✕</button>
         </div>
@@ -94,10 +103,11 @@ export default function QuestionEditor({ question, onClose, onSaved }) {
             </p>
           )}
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
             <label><Label>Код</Label>
-              <input className={`${field} font-mono`} value={form.code} disabled={!isNew} placeholder="J26"
-                onChange={(e) => set({ code: e.target.value })} data-testid="f-code" /></label>
+              <input className={`${field} font-mono ${badCode ? "border-red-300" : ""}`} value={form.code} disabled={!isNew} placeholder="J26 / M4-26"
+                onChange={(e) => setCode(e.target.value)} data-testid="f-code" />
+              {badCode && <span className="block mt-1 text-[11px] text-red-600">буква темы + номер (J26) или модуль-номер (M4-26)</span>}</label>
             <label><Label>Уровень</Label>
               <select className={field} value={form.level} onChange={(e) => set({ level: e.target.value })} data-testid="f-level">
                 {LEVELS.map((l) => <option key={l.value} value={l.value}>{l.label}</option>)}
@@ -108,12 +118,14 @@ export default function QuestionEditor({ question, onClose, onSaved }) {
               </select></label>
             <label><Label hint="не пересекаются в одном наборе">Группа конфликтов</Label>
               <input className={field} value={form.conflictGroup} onChange={(e) => set({ conflictGroup: e.target.value })} /></label>
+            <label><Label hint="напр. auth, orm">Подтема</Label>
+              <input className={field} value={form.subtopic} maxLength={40} onChange={(e) => set({ subtopic: e.target.value })} data-testid="f-subtopic" /></label>
           </div>
 
           <div className="grid md:grid-cols-3 gap-3">
             <div><Label>Направления</Label>
               <div className="flex flex-col gap-1">
-                {TRACKS.map((t) => (
+                {trackChoices.map((t) => (
                   <label key={t.value} className="flex items-center gap-2 text-sm text-slate-700">
                     <input type="checkbox" checked={form.tracks.includes(t.value)}
                       onChange={(e) => set({ tracks: e.target.checked ? [...form.tracks, t.value] : form.tracks.filter((x) => x !== t.value) })} />
@@ -222,9 +234,9 @@ export default function QuestionEditor({ question, onClose, onSaved }) {
 
         <div className="sticky bottom-0 bg-white border-t border-slate-100 px-5 py-3 flex items-center gap-2">
           {!isNew && (
-            <button type="button" onClick={archive} disabled={busy}
-              className="px-3 py-2 rounded-lg text-sm text-red-600 hover:bg-red-50">
-              {question.isActive === false ? "Вернуть из архива" : "В архив"}
+            <button type="button" onClick={archive} disabled={busy} data-testid="archive-question"
+              className={`px-3 py-2 rounded-lg text-sm ${notCovered ? "text-green-700 hover:bg-green-50" : "text-red-600 hover:bg-red-50"}`}>
+              {notCovered ? "Включить (модуль пройден)" : question.isActive === false ? "Вернуть из архива" : "В архив"}
             </button>
           )}
           <span className="ml-auto text-xs text-slate-400">{isNew ? "" : dirty ? `изменено полей: ${Object.keys(patch).length}` : "без изменений"}</span>

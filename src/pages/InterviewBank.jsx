@@ -2,11 +2,10 @@ import React, { useEffect, useState, useCallback } from "react";
 import { api } from "../utils/api";
 import { toast, ToastContainer } from "react-toastify";
 import { Plus, Edit, Trash2, Power, PowerOff, X, ListChecks } from "lucide-react";
+import { trackLabel } from "../utils/tracks";
 
-const TRACKS = [
-  { value: "frontend-react", label: "Frontend (React)" },
-  { value: "backend-nodejs", label: "Backend (Node.js)" },
-];
+// Темы старого чек-листа (InterviewTopic): в модели бэка только эти два трека; подписи — общие.
+const TRACKS = ["frontend-react", "backend-nodejs"].map((value) => ({ value, label: trackLabel(value) }));
 const CATEGORIES = [
   { value: "html-css", label: "HTML / CSS" },
   { value: "javascript", label: "JavaScript" },

@@ -55,7 +55,9 @@ export default function StartLiveModal({ interview, modes, onClose, onStarted })
   const [preview, setPreview] = useState(null);
   const [previewing, setPreviewing] = useState(false);
   const [size, setSize] = useState(18);
+  const [extrasN, setExtrasN] = useState(0); // Python: + HTML/CSS из JS-банка сверх основного набора
   const [bank, setBank] = useState([]);
+  const [extraCodes, setExtraCodes] = useState([]); // коды extras, которых нет в банке направления
   const [showList, setShowList] = useState(false);
   const [saving, setSaving] = useState(false);
   const [touched, setTouched] = useState(false); // интервьюер сам выбрал вариант — совет не перебивает
@@ -64,17 +66,24 @@ export default function StartLiveModal({ interview, modes, onClose, onStarted })
   // Наборы направления + вопросы банка (для состава и просмотра).
   useEffect(() => {
     let cancelled = false;
-    setLoading(true); setError(""); setPreview(null); setChoice("suggested"); setShowList(false); setTouched(false);
+    setLoading(true); setError(""); setPreview(null); setChoice("suggested"); setShowList(false); setTouched(false); setExtrasN(0);
     (async () => {
       try {
         const [s, q] = await Promise.all([
           api.interviews.live.sets({ interviewId: interview._id, track }),
           api.questionBank.questions({ track }),
         ]);
+        // extras (Python: HTML/CSS из JS-банка) — вопросы другого направления, догружаем для состава и просмотра.
+        const want = new Set(s.extras?.codes || []);
+        const own = q.questions || [];
+        const foreign = want.size
+          ? ((await api.questionBank.questions({})).questions || []).filter((x) => want.has(x.code) && !(x.tracks || []).includes(track))
+          : [];
         if (cancelled) return;
         setData(s);
         setSize(s.defaultSize || 18);
-        setBank(q.questions || []);
+        setBank([...own, ...foreign]);
+        setExtraCodes(foreign.map((x) => x.code));
         const first = (s.sets || []).find((x) => x._id !== s.suggestedSetId);
         setOtherId(first?._id || "");
       } catch (e) {
@@ -94,7 +103,7 @@ export default function StartLiveModal({ interview, modes, onClose, onStarted })
   const runPreview = async () => {
     setPreviewing(true);
     try {
-      const r = await api.interviews.live.preview({ track, interviewId: interview._id, size });
+      const r = await api.interviews.live.preview({ track, interviewId: interview._id, size, ...(data?.extras ? { extras: extrasN } : {}) });
       setPreview(r);
     } catch (e) {
       setPreview(null);
@@ -108,7 +117,7 @@ export default function StartLiveModal({ interview, modes, onClose, onStarted })
   useEffect(() => {
     if ((choice === "generate" || retakeNow) && !preview && !previewing && data && data.mode === "live") runPreview();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [choice, data, size]);
+  }, [choice, data, size, extrasN]);
   const advice = useMemo(() => retakeAdvice({ retake: retakeNow, sets: data?.sets, preview }), [retakeNow, data, preview]);
   useEffect(() => { if (advice && !touched) setChoice("generate"); }, [advice, touched]);
 
@@ -116,6 +125,16 @@ export default function StartLiveModal({ interview, modes, onClose, onStarted })
     : choice === "other" ? other?.questionCodes
     : preview?.questionCodes;
   const comp = useMemo(() => composition(chosenCodes || [], bankByCode), [chosenCodes, bankByCode]);
+  // Уровни — по основному составу: extras в правило уровней не входят.
+  const levelComp = useMemo(() => {
+    const extra = new Set(extraCodes);
+    return composition((chosenCodes || []).filter((c) => !extra.has(c)), bankByCode);
+  }, [chosenCodes, bankByCode, extraCodes]);
+  // + HTML/CSS: 0…extras.max и так, чтобы size + extras ≤ maxTotal.
+  const extrasOptions = data?.extras
+    ? Array.from({ length: (Number(data.extras.max) || 0) + 1 }, (_, i) => i)
+      .filter((n) => !data.extras.maxTotal || size + n <= data.extras.maxTotal)
+    : [];
   const violations = choice === "generate" ? preview?.violations || [] : [];
   const canStart = !loading && !saving && !!chosenCodes?.length && violations.length === 0 && data?.mode === "live";
 
@@ -128,7 +147,10 @@ export default function StartLiveModal({ interview, modes, onClose, onStarted })
     setSaving(true);
     try {
       const body = { track };
-      if (choice === "generate") { body.generate = true; body.size = size; body.questionCodes = preview.questionCodes; }
+      if (choice === "generate") {
+        body.generate = true; body.size = size; body.questionCodes = preview.questionCodes;
+        if (data?.extras) body.extras = extrasN;
+      }
       else body.setId = choice === "suggested" ? suggested._id : other._id;
       const view = await api.interviews.live.start(interview._id, body);
       onStarted(view);
@@ -197,7 +219,7 @@ export default function StartLiveModal({ interview, modes, onClose, onStarted })
                     <span className="text-sm">
                       <span className={choice === "suggested" ? "font-medium text-slate-900" : "text-slate-900"}>Набор №{suggested.number} — следующий по ротации</span><br />
                       <span className="text-xs text-slate-500">
-                        {used(suggested)} · {suggested.size} вопросов · {levelsText(composition(suggested.questionCodes, bankByCode))}{overlapOf(suggested)}
+                        {used(suggested)} · {suggested.size} вопросов · {levelsText(composition(suggested.questionCodes.filter((c) => !extraCodes.includes(c)), bankByCode))}{overlapOf(suggested)}
                       </span>
                     </span>
                   </button>
@@ -209,13 +231,33 @@ export default function StartLiveModal({ interview, modes, onClose, onStarted })
                   <span className="text-sm flex-1">
                     <span className={choice === "generate" ? "font-medium text-slate-900" : "text-slate-900"}>Сгенерировать новый по правилу</span><br />
                     <span className="text-xs text-slate-500">без вопросов трёх прошлых собеседований{retake ? " и прошлой попытки кандидата" : ""}</span>
-                  <label className="mt-2 flex items-center gap-1.5 text-xs text-slate-500" onClick={(e) => e.stopPropagation()}>
+                  <span className="mt-2 flex flex-wrap items-center gap-1.5 text-xs text-slate-500" onClick={(e) => e.stopPropagation()}>
+                  <label className="flex items-center gap-1.5">
                     Вопросов
-                    <select value={size} aria-label="Количество вопросов" onChange={(e) => { setSize(Number(e.target.value)); setPreview(null); pick("generate"); }}
+                    <select value={size} aria-label="Количество вопросов" onChange={(e) => {
+                      const n = Number(e.target.value);
+                      setSize(n); setPreview(null); pick("generate");
+                      if (data?.extras?.maxTotal && n + extrasN > data.extras.maxTotal) setExtrasN(Math.max(0, data.extras.maxTotal - n));
+                    }}
                       className="px-2 py-1 rounded-lg border border-slate-200 text-xs bg-white focus:outline-none focus:border-blue-400">
                       {SIZE_OPTIONS.map((n) => <option key={n} value={n}>{n}</option>)}
                     </select>
                   </label>
+                    {extrasOptions.length > 1 && (
+                      <>
+                        <span className="ml-2">+ HTML/CSS</span>
+                        <span className="inline-flex rounded-lg border border-slate-200 overflow-hidden" role="group" aria-label="Дополнительно HTML/CSS">
+                          {extrasOptions.map((n) => (
+                            <button key={n} type="button" onClick={() => { setExtrasN(n); setPreview(null); pick("generate"); }}
+                              aria-pressed={extrasN === n} data-testid={`extras-${n}`}
+                              className={`px-2 py-1 text-xs ${extrasN === n ? "bg-blue-600 text-white" : "bg-white text-slate-600 hover:bg-slate-50"}`}>
+                              {n}
+                            </button>
+                          ))}
+                        </span>
+                      </>
+                    )}
+                  </span>
                   </span>
                 </div>
                 {sets.length > 1 && (
@@ -246,7 +288,7 @@ export default function StartLiveModal({ interview, modes, onClose, onStarted })
               {chosenCodes?.length > 0 && (
                 <div className="text-xs bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 text-slate-600">
                   <div className="flex items-center justify-between gap-2">
-                    <span>{compositionText(comp)}{" · "}{levelsText(comp)}{choice === "generate" && retake && preview ? ` · ${overlapText(preview.overlap || 0)} с прошлой попыткой` : ""}</span>
+                    <span>{compositionText(comp)}{" · "}{levelsText(levelComp)}{choice === "generate" && retake && preview ? ` · ${overlapText(preview.overlap || 0)} с прошлой попыткой` : ""}</span>
                     <button type="button" onClick={() => setShowList((v) => !v)} className="shrink-0 inline-flex items-center gap-0.5 text-blue-600 hover:underline font-medium">
                       Посмотреть вопросы {showList ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
                     </button>

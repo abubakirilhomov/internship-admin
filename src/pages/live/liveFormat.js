@@ -1,6 +1,8 @@
 // Чистые функции живого собеседования (экран интервьюера и модалки).
 // Без React и без браузера — проверяются node --test.
 
+import { ACTIVE_TRACKS, SPHERE_LABELS, TOPIC_LABELS as BASE_TOPIC_LABELS } from "../../utils/tracks.js";
+
 export const TZ = "Asia/Tashkent";
 
 export const LEVELS = {
@@ -10,21 +12,13 @@ export const LEVELS = {
 };
 export const LEVEL_ORDER = ["oson", "orta", "qiyin"];
 
-export const TOPIC_LABELS = {
-  html: "HTML", css: "CSS", js: "JavaScript", react: "React", vue: "Vue", tailwind: "Tailwind CSS",
-  node: "Node.js", express: "Express", database: "Базы данных", api: "API и HTTP",
-};
+// Подписи тем (JS-темы + модули Python py-m3…py-m11) и направлений — из utils/tracks.js.
+export const TOPIC_LABELS = BASE_TOPIC_LABELS;
 
-export const BANK_TRACKS = [
-  { value: "frontend-react", label: "React" },
-  { value: "frontend-vue", label: "Vue" },
-  { value: "backend-nodejs", label: "Backend" },
-];
-export const TRACK_FULL = {
-  "frontend-react": "Frontend (React)",
-  "frontend-vue": "Frontend (Vue)",
-  "backend-nodejs": "Backend (Node.js)",
-};
+// Направления живого собеседования (выбор — только активные три).
+export const BANK_TRACKS = ACTIVE_TRACKS;
+// Полные подписи, включая архивный backend-nodejs (история).
+export const TRACK_FULL = SPHERE_LABELS;
 
 // Оценки: как MARK_META в ScoringModal.
 export const RESULT_META = {

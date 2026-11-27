@@ -19,6 +19,7 @@ import { useNavigate } from "react-router-dom";
 import StartLiveModal from "../components/interviews/StartLiveModal";
 import CandidateAccessModal from "../components/interviews/CandidateAccessModal";
 import { TRACK_FULL } from "./live/liveFormat";
+import { ACTIVE_TRACKS, SPHERE_LABELS, sphereToTrack, trackOptions } from "../utils/tracks";
 
 const STATUSES = [
   { value: "pending", label: "Новая", chip: "bg-yellow-100 text-yellow-800" },
@@ -34,14 +35,6 @@ const STATUSES = [
   { value: "duplicate", label: "Дубликат", chip: "bg-orange-100 text-orange-700" },
 ];
 
-const SPHERE_LABELS = {
-  "backend-nodejs": "Backend Node",
-  "backend-python": "Backend Python",
-  "frontend-react": "Frontend React",
-  "frontend-vue": "Frontend Vue",
-  "mern-stack": "React + Python",
-  "full-stack": "React + Node",
-};
 
 const SHIFT_LABELS = {
   morning: "1-смена (утро)",
@@ -457,11 +450,6 @@ const ConvertModal = ({ application, onClose, onSaved }) => {
 
 // ── Applications page ───────────────────────────────────────────────────────
 
-const TRACKS = [
-  { value: "frontend-react", label: "Frontend (React)" },
-  { value: "backend-nodejs", label: "Backend (Node.js)" },
-];
-const sphereToTrack = (s) => (s === "backend-nodejs" ? "backend-nodejs" : "frontend-react");
 const toLocalInput = (d) => {
   const dt = new Date(d);
   return new Date(dt.getTime() - dt.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
@@ -477,6 +465,8 @@ function ScheduleModal({ application, onClose, onSaved }) {
     application.interviewDate ? toLocalInput(application.interviewDate) : ""
   );
   const [track, setTrack] = useState(sphereToTrack(application.sphere));
+  // Три направления найма; архивный backend-nodejs — только для старой заявки с этой сферой.
+  const tracks = trackOptions(sphereToTrack(application.sphere));
   const [saving, setSaving] = useState(false);
 
   const submit = async () => {
@@ -515,7 +505,7 @@ function ScheduleModal({ application, onClose, onSaved }) {
           <div>
             <label className={labelCls}>Направление</label>
             <select value={track} onChange={(e) => setTrack(e.target.value)} className={fieldCls}>
-              {TRACKS.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+              {tracks.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
             </select>
           </div>
           {application.cooldownUntil && new Date(application.cooldownUntil) > new Date() && (
@@ -597,7 +587,7 @@ function CreateCandidateModal({ branches, mentors, onClose, onCreated }) {
           </div>
           <div><label className={labelCls}>Направление</label>
             <select value={form.sphere} onChange={(e) => set("sphere", e.target.value)} className={fieldCls}>
-              {Object.entries(SPHERE_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+              {ACTIVE_TRACKS.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
             </select>
           </div>
           <div><label className={labelCls}>Смена</label>
