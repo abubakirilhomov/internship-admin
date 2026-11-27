@@ -49,11 +49,15 @@ export function normalizeJsx(code) {
 }
 
 // Vue: SFC как есть; голая разметка (без <template>/<script>/<style>) заворачивается в <template>.
+// SFC без <script> бандлер Sandpack не обновляет при правке (проверено: превью остаётся старым),
+// поэтому в КОНЕЦ такого файла добавляется пустой компонент — номера строк не сдвигаются,
+// конфликта нет (своего <script> у кандидата нет).
+const EMPTY_SCRIPT = "\n<script>\nexport default {};\n</script>\n";
 export function normalizeVue(code) {
   const src = String(code ?? "");
-  if (!src.trim()) return "<template><div></div></template>\n";
-  if (/<\s*(template|script|style)\b/i.test(src)) return src;
-  return `<template>${src}</template>\n`;
+  if (!src.trim()) return `<template><div></div></template>${EMPTY_SCRIPT}`;
+  const sfc = /<\s*(template|script|style)\b/i.test(src) ? src : `<template>${src}</template>`;
+  return /<\s*script\b/i.test(sfc) ? sfc : sfc.replace(/\n*$/, "") + EMPTY_SCRIPT;
 }
 
 /**
