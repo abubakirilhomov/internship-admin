@@ -30,6 +30,7 @@ import StuckFeedbacks from "./pages/StuckFeedbacks";
 import Applications from "./pages/Applications";
 import InternRequests from "./pages/InternRequests";
 import Interviews from "./pages/Interviews";
+import LiveInterview from "./pages/LiveInterview";
 import InterviewBank from "./pages/InterviewBank";
 import QuestionBankView from "./pages/QuestionBankView";
 import MarsIdReturn from "./pages/MarsIdReturn";
@@ -254,6 +255,14 @@ function App() {
                   <Layout>
                     <Interviews />
                   </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/interviews/:id/live"
+              element={
+                <ProtectedRoute>
+                  <LiveInterview />
                 </ProtectedRoute>
               }
             />
