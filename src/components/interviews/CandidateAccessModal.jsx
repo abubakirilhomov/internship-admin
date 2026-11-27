@@ -34,9 +34,13 @@ export default function CandidateAccessModal({ credentials, candidate, subtitle,
         <div className="p-5 space-y-4">
           <div className="rounded-xl bg-green-50 border border-green-200 p-4 space-y-2">
             <p className="text-sm text-slate-600">Сайт:{" "}
-              <a href={credentials.appUrl} target="_blank" rel="noreferrer" className="font-mono text-slate-900 hover:underline inline-flex items-center gap-1">
-                {site} <ExternalLink className="w-3 h-3 text-slate-400" />
-              </a>
+              {site ? (
+                <a href={credentials.appUrl} target="_blank" rel="noreferrer" className="font-mono text-slate-900 hover:underline inline-flex items-center gap-1">
+                  {site} <ExternalLink className="w-3 h-3 text-slate-400" />
+                </a>
+              ) : (
+                <span className="text-xs text-amber-700">адрес сайта не задан на сервере (CANDIDATE_APP_URL)</span>
+              )}
             </p>
             <p className="text-sm text-slate-600">Логин: <span className="font-mono text-base text-slate-900">{credentials.username}</span></p>
             <p className="text-sm text-slate-600">Пароль: <span className="font-mono text-base text-slate-900">{credentials.password}</span></p>

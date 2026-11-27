@@ -136,7 +136,9 @@ export function credentialsText(creds, lang = "uz") {
   const labels = lang === "ru"
     ? { site: "Сайт", login: "Логин", pass: "Пароль" }
     : { site: "Sayt", login: "Login", pass: "Parol" };
-  return `${labels.site}: ${site}\n${labels.login}: ${creds.username}\n${labels.pass}: ${creds.password}`;
+  const lines = [`${labels.login}: ${creds.username}`, `${labels.pass}: ${creds.password}`];
+  if (site) lines.unshift(`${labels.site}: ${site}`);
+  return lines.join("\n");
 }
 
 export function windowText(creds) {

@@ -46,6 +46,7 @@ test("credentialsText: uz и ru, без протокола в адресе", () 
   const c = { appUrl: "https://cand.example.app/", username: "aziz-7q4m", password: "5821 9364" };
   assert.equal(credentialsText(c, "uz"), "Sayt: cand.example.app\nLogin: aziz-7q4m\nParol: 5821 9364");
   assert.equal(credentialsText(c, "ru"), "Сайт: cand.example.app\nЛогин: aziz-7q4m\nПароль: 5821 9364");
+  assert.equal(credentialsText({ ...c, appUrl: "" }, "uz"), "Login: aziz-7q4m\nParol: 5821 9364");
   assert.equal(windowText({ validFrom: "2026-11-27T08:30:00Z", expiresAt: "2026-11-27T12:00:00Z" }), "13:30–17:00");
 });
 
