@@ -174,6 +174,21 @@ it("правка кода обновляет превью; правка во в�
   await s.context.close();
 });
 
+it("Vue и Tailwind без <script> (только разметка): правка обновляет превью", async () => {
+  // Регресс: бандлер не обновляет SFC без <script> — normalizeVue добавляет пустой компонент.
+  for (const [editor, one, two] of [
+    ["vue", "<template><b id='x'>one</b></template>", "<template><b id='x'>two</b></template>"],
+    ["tailwind", "<b id='x' class='p-2'>one</b>", "<b id='x' class='p-2'>two</b>"],
+  ]) {
+    const s = await open(editor, one);
+    await loaded(s.page);
+    await s.frame().waitForFunction(() => document.querySelector("#x")?.innerText === "one", null, { timeout: 25000 });
+    await s.page.evaluate(([e, c]) => window.__setSandbox({ editor: e, code: c }), [editor, two]);
+    await s.frame().waitForFunction(() => document.querySelector("#x")?.innerText === "two", null, { timeout: 15000 });
+    await s.context.close();
+  }
+});
+
 it("ошибка компиляции показывается в консоли, страница живёт", async () => {
   const s = await open("jsx", "function A(){ return <b>; }");
   await loaded(s.page);

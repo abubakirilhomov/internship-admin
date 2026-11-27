@@ -8,7 +8,7 @@ import { createHash } from "node:crypto";
 import fs from "node:fs";
 
 const FILES = ["runner.js", "prelude.js", "protectLoops.js", "runnable.js", "sandpack.js"];
-const SANDBOX_CORE_HASH = "0693e3deb4174e5e";
+const SANDBOX_CORE_HASH = "91877f7d24df93c8";
 
 test("ядро песочницы совпадает с копией во втором репозитории", () => {
   const h = createHash("sha256");

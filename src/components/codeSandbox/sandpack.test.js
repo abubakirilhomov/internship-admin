@@ -37,13 +37,19 @@ test("normalizeJsx: уже полный файл не трогаем; после
   assert.ok(!/export default/.test(normalizeJsx("const x = 1;")));
 });
 
-test("normalizeVue: SFC как есть, голая разметка → <template>, пустое → заглушка", () => {
+test("normalizeVue: SFC со <script> как есть; голая разметка → <template>; без <script> — пустой компонент в конце", () => {
   const sfc = "<script setup>\nconst a = 1;\n</script>\n<template><b/></template>";
   assert.equal(normalizeVue(sfc), sfc);
-  assert.equal(normalizeVue('<div class="p-4">x</div>'), '<template><div class="p-4">x</div></template>\n');
-  assert.match(normalizeVue(""), /<template>/);
+  const bare = normalizeVue('<div class="p-4">x</div>');
+  assert.match(bare, /^<template><div class="p-4">x<\/div><\/template>\n<script>\nexport default \{\};\n<\/script>\n$/);
+  assert.match(normalizeVue(""), /^<template>/);
+  assert.match(normalizeVue(""), /export default \{\}/);
   const onlyScript = "<script setup>const a = 1;</script>";
   assert.equal(normalizeVue(onlyScript), onlyScript);
+  // номера строк кода кандидата не сдвигаются: добавка только в конце
+  const tpl = "<template>\n  <b>1</b>\n</template>\n<style>b { color: red }</style>";
+  assert.ok(normalizeVue(tpl).startsWith(tpl));
+  assert.equal(normalizeVue(tpl).split("\n").slice(0, 4).join("\n"), tpl);
 });
 
 test("sandpackSetup: шаблоны, версии, Tailwind только у tailwind", () => {
@@ -65,6 +71,7 @@ test("sandpackSetup: шаблоны, версии, Tailwind только у tail
   assert.deepEqual(t.externalResources, [TAILWIND_BROWSER_URL]);
   assert.match(TAILWIND_BROWSER_URL, /@tailwindcss\/browser@4$/);
   assert.match(t.files["/src/App.vue"].code, /^<template>/);
+  assert.match(t.files["/src/App.vue"].code, /export default \{\};/);
 
   assert.throws(() => sandpackSetup("web", ""), /Нет шаблона/);
 });
