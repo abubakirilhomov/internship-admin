@@ -49,6 +49,12 @@ export default function QuestionDemo({ demo, fix = null, lang = "uz" }) {
   useEffect(() => { setLayers(false); setStatus("idle"); }, [srcDoc]);
 
   const play = useCallback(() => setRun((r) => ({ key: r.key + 1, autoplay: true })), []);
+  // Переключение «проблема ↔ исправление» — чистая сцена без автозапуска:
+  // сценарий запускает только «▶».
+  const toggleFix = useCallback(() => {
+    setShowFix((v) => !v);
+    setRun((r) => ({ key: r.key + 1, autoplay: false }));
+  }, []);
   const toggleLayers = useCallback(() => {
     frameRef.current?.contentWindow?.postMessage({ __demo: true, type: "layers", on: !layers }, "*");
   }, [layers]);
@@ -78,7 +84,7 @@ export default function QuestionDemo({ demo, fix = null, lang = "uz" }) {
           </button>
         )}
         {fix && (
-          <button type="button" onClick={() => setShowFix((v) => !v)}
+          <button type="button" onClick={toggleFix}
             className={`${btn} ml-auto ${showFix ? "bg-emerald-600 border-emerald-600 text-white" : "bg-white border-emerald-300 text-emerald-700 hover:bg-emerald-50"}`}>
             <Wrench className="w-3.5 h-3.5" /> {showFix ? "Показать проблему" : "Показать исправление"}
           </button>
